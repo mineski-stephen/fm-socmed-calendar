@@ -1,0 +1,146 @@
+/* ============================================================================
+   calendar.css — month grid, and the brand-grouped platform chips inside a day.
+   ========================================================================== */
+
+.cal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.cal__dow {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.cal__dow span {
+  padding: 11px 14px;
+  font-size: 12px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  text-align: left;
+}
+/* Sunday and Saturday read as the weekend without shouting. */
+.cal__dow span:first-child, .cal__dow span:last-child { color: var(--accent); }
+
+.cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.cell {
+  position: relative;
+  min-height: 164px;
+  padding: 10px 11px 12px;
+  border-right: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  display: flex; flex-direction: column; gap: 6px;
+  cursor: pointer;
+  background: var(--surface);
+}
+.cell:nth-child(7n) { border-right: 0; }
+.cell:hover { background: var(--surface-2); }
+.cell--out { background: var(--bg); cursor: default; }
+.cell--out:hover { background: var(--bg); }
+.cell--out .cell__date { color: var(--text-faint); opacity: .55; }
+.cell--weekend:not(.cell--out) { background: color-mix(in srgb, var(--surface-2) 45%, var(--surface)); }
+
+.cell__head { display: flex; align-items: center; gap: 7px; }
+
+.cell__date {
+  font-size: 16px; font-weight: 700;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+.cell--today .cell__date {
+  background: var(--accent); color: var(--on-accent);
+  min-width: 28px; height: 28px;
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0 5px;
+}
+.cell__total {
+  margin-left: auto;
+  font-size: 12px; font-weight: 700;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.cell__chips { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+
+/* one group per brand */
+.bgroup {
+  border-left: 4px solid var(--c, var(--text-faint));
+  padding-left: 8px;
+  display: flex; flex-direction: column; gap: 5px;
+  min-width: 0;
+}
+.bgroup__name {
+  font-size: 11px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--c, var(--text-faint));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bgroup__chips { display: flex; flex-wrap: wrap; gap: 5px; }
+
+/* one chip per platform, with the count for that platform on that day */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px 4px 5px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 99px;
+  font-size: 13px; font-weight: 700;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+.chip__logo { width: 19px; height: 19px; border-radius: 50%; flex: 0 0 auto; }
+.chip__ph {
+  width: 19px; height: 19px; border-radius: 50%;
+  font-size: 12px;
+  background: var(--pf-unspecified);
+  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.cell__empty { flex: 1; }
+
+.cal__legend {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  margin-top: 14px;
+  font-size: 13px; color: var(--text-faint);
+}
+.cal__legend .fchip__dot { width: 8px; height: 8px; }
+.cal__legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+@media (max-width: 900px) {
+  .cell { min-height: 128px; padding: 7px; }
+  .bgroup__name { font-size: 10px; }
+  .chip { font-size: 12px; }
+}
+@media (max-width: 620px) {
+  .cal__dow span { padding: 6px 4px; font-size: 9px; letter-spacing: .04em; }
+  .cell { min-height: 78px; padding: 4px 3px; gap: 4px; }
+  .cell__total { display: none; }
+  .bgroup { padding-left: 4px; border-left-width: 2px; }
+  .bgroup__name { display: none; }
+  .chip { padding: 1px 4px 1px 2px; font-size: 9.5px; }
+  .chip__logo, .chip__ph { width: 11px; height: 11px; }
+}
+
+/* A past day still holding unposted work, flagged on the grid itself so the
+   backlog is visible without opening anything. */
+.cell--overdue {
+  background: color-mix(in srgb, var(--danger) 7%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+.cell--overdue:hover { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); }
+.cell--overdue .cell__total { color: var(--danger); font-weight: 800; }
+.cell--overdue .cell__total::after { content: " !"; }

@@ -1,0 +1,179 @@
+/* ============================================================================
+   states.css — boot error, loading skeleton, fetch error, empty results,
+   toasts. Everything the user sees when there is no calendar to show.
+   ========================================================================== */
+
+.bootmsg {
+  max-width: 620px;
+  margin: 48px auto;
+  padding: 24px 26px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--warn);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+.bootmsg h2 { font-size: 17px; margin-bottom: 10px; }
+.bootmsg p  { color: var(--text-dim); margin-bottom: 9px; line-height: 1.55; }
+.bootmsg pre { margin: 12px 0; }
+
+/* the file:// guard hides the app shell entirely — a dead UI is worse than none */
+:root[data-boot-error] .appbar,
+:root[data-boot-error] .tabs,
+:root[data-boot-error] .filterbar,
+:root[data-boot-error] .main { display: none; }
+
+.statuspane[hidden] { display: none; }
+
+.statepanel {
+  max-width: 560px;
+  margin: 40px auto;
+  padding: 26px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.statepanel h2 { font-size: 16px; margin-bottom: 8px; }
+.statepanel p {
+  color: var(--text-dim); font-size: 13px; line-height: 1.55;
+  margin-bottom: 8px;
+}
+.statepanel__actions {
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  flex-wrap: wrap; margin-top: 16px;
+}
+.statepanel__url {
+  display: block; margin-top: 12px;
+  font-size: 11px; color: var(--text-faint);
+  word-break: break-all;
+}
+.statepanel--error { border-left: 4px solid var(--danger); text-align: left; }
+.statepanel--error .statepanel__actions { justify-content: flex-start; }
+
+.empty {
+  padding: 46px 20px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+.empty strong { display: block; color: var(--text-dim); font-size: 14px; margin-bottom: 5px; }
+
+/* --------------------------- loading skeleton ---------------------------- */
+
+.skel {
+  border-radius: var(--radius);
+  background: linear-gradient(100deg,
+    var(--surface-2) 30%, var(--surface-3) 50%, var(--surface-2) 70%);
+  background-size: 220% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+.skelcal {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+.skelcal .skel { height: 104px; }
+.skelbar { height: 34px; margin-bottom: 14px; max-width: 320px; }
+
+/* ------------------------------- toasts ---------------------------------- */
+
+.toast {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 11px 13px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--c, var(--accent));
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  font-size: 12.5px;
+  animation: toastin .22s ease both;
+}
+.toast--error { --c: var(--danger); }
+.toast--ok    { --c: var(--st-posted); }
+.toast__body { flex: 1; min-width: 0; }
+.toast__title { font-weight: 700; margin-bottom: 2px; }
+.toast__msg { color: var(--text-dim); overflow-wrap: anywhere; }
+.toast__x {
+  appearance: none; background: none; border: 0;
+  color: var(--text-faint); cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 0 2px;
+}
+.toast__x:hover { color: var(--text); }
+@keyframes toastin {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ============================================================================
+   Full-page loader.
+
+   Held for at least a moment even when the fetch is fast: a spinner that
+   flashes for 80ms reads as a glitch, while a steady beat reads as the page
+   doing its job. It fades out rather than disappearing.
+   ========================================================================== */
+
+.loader {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 18px;
+  background: var(--bg);
+  transition: opacity .35s ease, visibility .35s ease;
+}
+.loader[hidden] { display: flex !important; opacity: 0; visibility: hidden; pointer-events: none; }
+
+.loader__mark {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: var(--shadow-md);
+  animation: loaderpop .6s cubic-bezier(.2, .9, .3, 1.2) both;
+}
+@keyframes loaderpop {
+  from { transform: scale(.85); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.loader__ring {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  border-top-color: var(--accent);
+  animation: spin .75s linear infinite;
+}
+
+.loader__label {
+  font-size: 13px; font-weight: 600;
+  color: var(--text-faint);
+  letter-spacing: .02em;
+}
+
+/* ----------------------------- copy toast -------------------------------- */
+
+/* Pops out of the middle of the screen when a caption is copied, then drifts
+   up and fades. Deliberately not in the corner with the error toasts - this is
+   feedback for something you just clicked, so it belongs where you are looking. */
+.copytoast {
+  position: fixed; left: 50%; top: 50%; z-index: 210;
+  display: flex; align-items: center; gap: 9px;
+  padding: 11px 18px;
+  border-radius: 99px;
+  background: var(--text);
+  color: var(--bg-elev);
+  font-size: 13.5px; font-weight: 700;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  white-space: nowrap;
+  animation: copypop 1.5s cubic-bezier(.2, .9, .3, 1.15) both;
+}
+.copytoast svg { width: 17px; height: 17px; }
+
+@keyframes copypop {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(.7); }
+  14%  { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+  24%  { transform: translate(-50%, -50%) scale(1); }
+  74%  { opacity: 1; transform: translate(-50%, -58%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -96%) scale(.94); }
+}

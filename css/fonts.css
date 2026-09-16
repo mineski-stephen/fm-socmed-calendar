@@ -1,0 +1,77 @@
+/* ============================================================================
+   fonts.css — Helvetica Neue, self-hosted from font/.
+
+   Only the weights the page actually uses are declared; loading all 49 files in
+   the folder would cost far more than it gives. `font-display: swap` means text
+   is readable immediately in the fallback and re-renders once the face lands,
+   so a slow font never leaves the page blank.
+
+   The italic faces are the .ttf cuts because the folder has no oblique .otf at
+   these weights.
+   ========================================================================== */
+
+@font-face {
+  font-family: "Helvetica Neue LT";
+  src: url("../font/HelveticaNeue-Light.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Helvetica Neue LT";
+  src: url("../font/HelveticaNeue-Roman.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Helvetica Neue LT";
+  src: url("../font/HelveticaNeueItalic.ttf") format("truetype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Helvetica Neue LT";
+  src: url("../font/HelveticaNeue-Medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* The folder has no 600 cut, so semibold maps to the same Medium face and the
+   browser synthesises the extra weight rather than falling back to Arial. */
+@font-face {
+  font-family: "Helvetica Neue LT";
+  src: url("../font/HelveticaNeue-Medium.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Helvetica Neue LT";
+  src: url("../font/HelveticaNeueBold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Helvetica Neue LT";
+  src: url("../font/HelveticaNeueBoldItalic.ttf") format("truetype");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Helvetica Neue LT";
+  src: url("../font/HelveticaNeue-Black.otf") format("opentype");
+  font-weight: 800 900;
+  font-style: normal;
+  font-display: swap;
+}

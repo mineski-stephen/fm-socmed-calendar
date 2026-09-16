@@ -1,0 +1,269 @@
+/* ============================================================================
+   config.js — every constant the app needs. No imports, no side effects.
+
+   The META registries below are what keep platform/brand/type handling out of
+   the render code: everything downstream does a lookup by key instead of
+   branching on a raw sheet string.
+   ========================================================================== */
+
+/** Published CSV of the team's tracker sheet. */
+export const CSV_URL =
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vR26NJiJz14xBD0dY69D_RnA9F-JNtxqRDnQfUEKfnJVZtpPZHGfNH5Xj3mKIlz-s7lATp3gEk_WYDo/pub?gid=1769957223&single=true&output=csv';
+
+export const STORAGE_KEY = 'fmcal.v1';
+
+/** How often the page re-reads the sheet on its own. */
+export const AUTO_REFRESH_MS = 60 * 1000;
+
+/**
+ * Minimum time the full-page loader stays up. A spinner that appears and
+ * vanishes within a frame or two reads as a flicker, not as loading.
+ */
+export const LOADER_MIN_MS = 1000;
+
+export const MONTHS = {
+  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+};
+
+export const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+export const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday',
+  'Friday', 'Saturday'];
+export const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/* ---------------------------------------------------------------------------
+   Column resolution. Headers are matched by NORMALISED name (lowercased, all
+   non-alphanumerics stripped) so the team can rename or reorder sheet columns
+   without breaking the page. First alias that resolves wins.
+   ------------------------------------------------------------------------- */
+export const HEADER_ALIASES = {
+  date:     ['postingdate', 'date', 'postdate'],
+  time:     ['postingtime', 'time', 'posttime'],
+  deadline: ['approvaldeadline', 'deadline'],
+  brand:    ['brand', 'account'],
+  platform: ['platform', 'channel'],
+  type:     ['typeofpost', 'posttype', 'type'],
+  desc:     ['descriptionofthisposting', 'description'],
+  owner:    ['owner', 'assignee'],
+  status:   ['status'],
+  files:    ['files', 'file', 'asset', 'assets'],
+  caption:  ['copywritingcaption', 'caption', 'copywriting', 'copy'],
+  link:     ['postlink', 'livelink', 'link'],
+  notes:    ['notescomments', 'notes', 'comments', 'remarks'],
+  filesUrl: ['fileschipurl', 'fileschip', 'fileurl', 'fileslink', 'assetlink'],
+};
+
+/** Columns without which the page cannot render anything meaningful. */
+export const REQUIRED_COLUMNS = ['date', 'brand'];
+
+/* ---------------------------------------------------------------------------
+   Brands. FUNaloMAX Studios has no rows in the sheet yet, but its avatar is on
+   disk, so it is wired now and will light up the moment a row uses it.
+   ------------------------------------------------------------------------- */
+export const BRAND_META = {
+  'funalomax': {
+    label: 'FUNalo MAX',
+    handle: 'FUNaloMAX',
+    avatar: 'img/profile_funalomax.png',
+    hue: 'var(--brand-funalomax)',
+  },
+  'funalomax-studios': {
+    label: 'FUNalo MAX Studios',
+    handle: 'funalomaxstudio',
+    avatar: 'img/profile_funalomax_studios.jpg',
+    hue: 'var(--brand-funalomax-studios)',
+  },
+  'solaire-online': {
+    label: 'Solaire Online',
+    handle: 'SolaireOnline',
+    avatar: 'img/profile_solaire_online.jpg',
+    hue: 'var(--brand-solaire-online)',
+  },
+};
+
+export const BRAND_FALLBACK = {
+  label: 'Unassigned',
+  handle: 'unknown',
+  avatar: null,
+  hue: 'var(--brand-unknown)',
+};
+
+/** Sheet spellings that collapse onto a canonical brand key. */
+export const BRAND_ALIASES = {
+  'funalomax': 'funalomax',
+  'funalo-max': 'funalomax',
+  'fam': 'funalomax',
+  'funalomax-studios': 'funalomax-studios',
+  'funalo-max-studios': 'funalomax-studios',
+  'funalomaxstudios': 'funalomax-studios',
+  'solaire-online': 'solaire-online',
+  'solaire': 'solaire-online',
+};
+
+/* ---------------------------------------------------------------------------
+   Platforms. `mock` selects the Layout-mode renderer; null means this platform
+   is always drawn as a simple card, which is how TikTok / YouTube / LinkedIn
+   stay simple-only without a single special case elsewhere in the codebase.
+   ------------------------------------------------------------------------- */
+export const PLATFORM_META = {
+  facebook:  { label: 'Facebook',  icon: 'img/fb.png',       hue: 'var(--pf-facebook)',  mock: 'fb' },
+  instagram: { label: 'Instagram', icon: 'img/ig.png',       hue: 'var(--pf-instagram)', mock: 'ig' },
+  x:         { label: 'X',         icon: 'img/x.png',        hue: 'var(--pf-x)',         mock: 'x'  },
+  tiktok:    { label: 'TikTok',    icon: 'img/tiktok.png',   hue: 'var(--pf-tiktok)',    mock: null },
+  youtube:   { label: 'YouTube',   icon: 'img/yt.png',       hue: 'var(--pf-youtube)',   mock: null },
+  linkedin:  { label: 'LinkedIn',  icon: 'img/linkedin.png', hue: 'var(--pf-linkedin)',  mock: null },
+};
+
+export const PLATFORM_FALLBACK = {
+  label: 'Unspecified', icon: null, hue: 'var(--pf-unspecified)', mock: null, unset: true,
+};
+
+export const PLATFORM_ALIASES = {
+  facebook: 'facebook', fb: 'facebook', meta: 'facebook',
+  instagram: 'instagram', ig: 'instagram', insta: 'instagram',
+  x: 'x', twitter: 'x', xtwitter: 'x',
+  tiktok: 'tiktok', tt: 'tiktok',
+  youtube: 'youtube', yt: 'youtube', youtubeshorts: 'youtube',
+  linkedin: 'linkedin', li: 'linkedin',
+};
+
+/** Display order wherever platforms are listed. */
+export const PLATFORM_ORDER =
+  ['facebook', 'instagram', 'x', 'tiktok', 'youtube', 'linkedin', 'unspecified'];
+
+/* ---------------------------------------------------------------------------
+   Types of post. `media` picks the placeholder renderer in render-post.js.
+   ------------------------------------------------------------------------- */
+export const TYPE_META = {
+  static:  { label: 'Static Post',      media: 'single' },
+  reels:   { label: 'Reels/Shorts',     media: 'reels' },
+  dynamic: { label: 'Dynamic/Moving',   media: 'dynamic' },
+  album:   { label: 'Album/Carousels',  media: 'album' },
+  ugc:     { label: 'KOL/UGC Shares',   media: 'ugc' },
+  story:   { label: 'Story',            media: 'story' },
+  text:    { label: 'Text Only',        media: 'none' },
+  link:    { label: 'Link Share',       media: 'link' },
+};
+
+export const TYPE_FALLBACK = { label: 'Unspecified', media: 'single', unset: true };
+
+export const TYPE_ALIASES = {
+  staticpost: 'static', static: 'static', statispost: 'static',
+  image: 'static', photo: 'static', singleimage: 'static', poster: 'static',
+
+  reelsshorts: 'reels', reels: 'reels', reel: 'reels',
+  shorts: 'reels', short: 'reels', video: 'reels',
+
+  dynamicmoving: 'dynamic', dynamic: 'dynamic', moving: 'dynamic',
+  gif: 'dynamic', animated: 'dynamic', motion: 'dynamic',
+
+  albumcarousels: 'album', albumcarousel: 'album', album: 'album',
+  carousel: 'album', carousels: 'album', multipleimages: 'album', gallery: 'album',
+
+  kolugcshares: 'ugc', kolugc: 'ugc', ugc: 'ugc', kol: 'ugc',
+  ugcshare: 'ugc', ugcshares: 'ugc', influencer: 'ugc',
+
+  story: 'story', stories: 'story',
+  textonly: 'text', text: 'text', copyonly: 'text',
+  link: 'link', linkshare: 'link',
+};
+
+export const TYPE_ORDER = [
+  'static', 'reels', 'album', 'dynamic', 'story', 'ugc',
+  'text', 'link', 'unspecified',
+];
+
+/** File extensions used to infer a media kind when Type of Post is blank. */
+export const EXT_HINTS = {
+  gif: 'dynamic',
+  mp4: 'reels', mov: 'reels', webm: 'reels', avi: 'reels',
+  jpg: 'static', jpeg: 'static', png: 'static', webp: 'static',
+};
+
+/* --------------------------------- status --------------------------------- */
+
+/* Ordered the way work actually moves through the pipeline, which is also the
+   order they appear in the filter bar and the Stats donut. */
+export const STATUS_META = {
+  'needs-action':        { label: 'Needs Action',        hue: 'var(--st-needs)' },
+  'for-revision':        { label: 'For Revision',        hue: 'var(--st-revision)' },
+  'for-client-approval': { label: 'For Client Approval', hue: 'var(--st-approval)' },
+  'approved':            { label: 'Approved',            hue: 'var(--st-approved)' },
+  'scheduled':           { label: 'Scheduled',           hue: 'var(--st-scheduled)' },
+  'posted':              { label: 'Posted',              hue: 'var(--st-posted)', done: true },
+  'rescheduled':         { label: 'Rescheduled',         hue: 'var(--st-resched)' },
+};
+
+export const STATUS_FALLBACK = { label: 'Unspecified', hue: 'var(--st-unknown)', unset: true };
+
+export const STATUS_ORDER = [
+  'needs-action', 'for-revision', 'for-client-approval', 'approved',
+  'scheduled', 'posted', 'rescheduled', 'unspecified',
+];
+
+export const STATUS_ALIASES = {
+  needsaction: 'needs-action', needaction: 'needs-action',
+  todo: 'needs-action', pending: 'needs-action',
+
+  forrevision: 'for-revision', revision: 'for-revision',
+  revise: 'for-revision', forrevisions: 'for-revision',
+
+  forclientapproval: 'for-client-approval', clientapproval: 'for-client-approval',
+  forapproval: 'for-client-approval', approval: 'for-client-approval',
+  review: 'for-client-approval', forreview: 'for-client-approval',
+
+  approved: 'approved', clientapproved: 'approved', ok: 'approved',
+
+  scheduled: 'scheduled', queued: 'scheduled',
+
+  posted: 'posted', published: 'posted', live: 'posted', done: 'posted',
+
+  rescheduled: 'rescheduled', reschedule: 'rescheduled', moved: 'rescheduled',
+};
+
+/** Statuses that mean the creative is signed off and no longer needs work. */
+export const STATUS_SETTLED = ['approved', 'scheduled', 'posted'];
+
+/* ------------------------------ mock assets ------------------------------- */
+
+/** Full-colour reaction emoji. NEVER apply a CSS filter to these. */
+export const FB_REACTS = [
+  'img/fb_react_like.png',
+  'img/fb_react_love.png',
+  'img/fb_react_laugh.png',
+  'img/fb_react_wow.png',
+  'img/fb_react_hug.png',
+  'img/fb_react_cry.png',
+  'img/fb_react_angry.png',
+];
+
+/** Black-on-transparent glyphs, used as CSS masks so they take currentColor. */
+export const GLYPHS = {
+  clip:      'img/clip_black.png',
+
+  fbLike:    'img/fb_like_black.png',
+  fbComment: 'img/fb_comment_black.png',
+  fbShare:   'img/fb_share_black.png',
+
+  igLike:     'img/ig_like_black.png',
+  igComment:  'img/ig_comment_black.png',
+  igRepost:   'img/ig_repost_black.png',
+  igShare:    'img/ig_share_black.png',
+  igBookmark: 'img/ig_bookmark_black.png',
+  igBurger:   'img/ig_hamburger_black.png',
+
+  xComment:  'img/x_comment_black.png',
+  xRepost:   'img/x_repost_black.png',
+  xLike:     'img/x_like_black.png',
+  xViews:    'img/x_views_black.png',
+  xBookmark: 'img/x_bookmark_black.png',
+  xShare:    'img/x_share_black.png',
+};
+
+export const PLAY_BADGE = 'img/fb_play.png';
+
+/** Tile count for an album/carousel when the sheet does not say otherwise. */
+export const CAROUSEL_DEFAULT = 4;

@@ -1,0 +1,195 @@
+/* ============================================================================
+   media.css — media placeholders.
+
+   Nothing here loads a real creative asset: the sheet only gives us filenames
+   and Drive links, not images. Every placeholder is pure CSS plus (for video)
+   the one real overlay asset we do have, img/fb_play.png. Each is tinted from
+   a per-post hue so posts stay visually distinguishable, and labelled with the
+   filename so it reads as deliberate rather than broken.
+   ========================================================================== */
+
+.ph {
+  position: relative;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(135deg,
+      color-mix(in srgb, var(--ph-hue, var(--accent)) 12%, var(--ph-a)) 0 9px,
+      color-mix(in srgb, var(--ph-hue, var(--accent)) 6%,  var(--ph-b)) 9px 18px);
+  display: flex; align-items: center; justify-content: center;
+  isolation: isolate;
+}
+.ph::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(150deg,
+    color-mix(in srgb, var(--ph-hue, var(--accent)) 34%, transparent),
+    transparent 62%);
+  pointer-events: none;
+}
+
+.ph__label {
+  position: relative;
+  max-width: 82%;
+  font-size: 10.5px; font-weight: 600;
+  color: color-mix(in srgb, var(--text) 52%, transparent);
+  text-align: center;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 38%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.ph--1x1   { aspect-ratio: 1 / 1; }
+.ph--4x5   { aspect-ratio: 4 / 5; }
+.ph--16x9  { aspect-ratio: 16 / 9; }
+.ph--191   { aspect-ratio: 1.91 / 1; }
+.ph--9x16  { aspect-ratio: 9 / 16; }
+
+/* ---------------------------------------------------------------------------
+   Video.
+
+   Video fills the full card width rather than sitting in a 9:16 column with
+   dead space beside it. Two things then say "this moves" without any video
+   file: the fb_play badge, and a slow light sweep across the placeholder.
+   ------------------------------------------------------------------------- */
+.ph--video {
+  background:
+    repeating-linear-gradient(115deg,
+      color-mix(in srgb, var(--ph-hue, var(--accent)) 26%, var(--ph-a)) 0 14px,
+      color-mix(in srgb, var(--ph-hue, var(--accent)) 14%, var(--ph-b)) 14px 28px);
+}
+.ph--video::before {
+  background: linear-gradient(165deg,
+    color-mix(in srgb, var(--ph-hue, var(--accent)) 46%, transparent),
+    transparent 70%);
+}
+
+/* the sweep */
+.ph__sheen {
+  position: absolute; inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(105deg,
+    transparent 38%,
+    color-mix(in srgb, #fff 26%, transparent) 50%,
+    transparent 62%);
+  background-size: 260% 100%;
+  animation: sheen 3.4s ease-in-out infinite;
+}
+@keyframes sheen {
+  0%       { background-position: 130% 0; }
+  55%, 100% { background-position: -130% 0; }
+}
+
+/* a scrub bar creeping along the bottom, like a video part-way through */
+.ph__bar {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 3px; z-index: 3;
+  background: rgba(255, 255, 255, .26);
+}
+.ph__bar i {
+  display: block; height: 100%;
+  background: #fff;
+  animation: scrub 6s linear infinite;
+}
+@keyframes scrub { from { width: 4%; } to { width: 100%; } }
+
+.ph__play {
+  position: absolute; left: 50%; top: 50%;
+  translate: -50% -50%;
+  width: 60px; height: 60px;
+  filter: drop-shadow(0 2px 12px rgba(0, 0, 0, .4));
+  pointer-events: none;
+  z-index: 3;
+  animation: pulse 2.6s ease-in-out infinite;
+}
+.ph__play--sm { width: 40px; height: 40px; opacity: .85; }
+@keyframes pulse {
+  0%, 100% { transform: scale(1);    opacity: .95; }
+  50%      { transform: scale(1.07); opacity: 1; }
+}
+
+.ph__badge {
+  position: absolute; right: 8px; bottom: 8px;
+  z-index: 2;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, .62);
+  color: #fff;
+  font-size: 9.5px; font-weight: 800; letter-spacing: .06em;
+}
+.ph__badge--tl { right: auto; left: 8px; bottom: auto; top: 8px; }
+.ph__badge--tr { bottom: auto; top: 8px; }
+.ph__badge--inline {
+  position: static;
+  margin-left: auto;
+  background: var(--surface-3);
+  color: var(--text-dim);
+}
+
+/* Dynamic / GIF — a slow drifting gradient reads as "this one moves". */
+.ph--dyn {
+  background: linear-gradient(120deg,
+    var(--ph-hue, var(--accent)), var(--accent-2),
+    var(--ph-hue, var(--accent)), var(--accent-2));
+  background-size: 320% 320%;
+  animation: dynshift 9s ease-in-out infinite;
+}
+.ph--dyn::before { background: none; }
+.ph--dyn .ph__label { color: #fff; background: rgba(0, 0, 0, .3); }
+@keyframes dynshift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* Album / Carousel — a 2x2 collage, with +N on the last tile if there are more. */
+.phgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  aspect-ratio: 1 / 1;
+}
+.phgrid .ph { aspect-ratio: auto; height: 100%; }
+.phgrid__more {
+  position: absolute; inset: 0;
+  background: rgba(0, 0, 0, .52);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 21px; font-weight: 700;
+  z-index: 3;
+}
+
+/* Story — segmented progress bars along the top. */
+.ph--story .ph__segs {
+  position: absolute; top: 7px; left: 7px; right: 7px;
+  display: flex; gap: 3px; z-index: 3;
+}
+.ph--story .ph__segs i {
+  flex: 1; height: 2.5px; border-radius: 99px;
+  background: rgba(255, 255, 255, .42);
+}
+.ph--story .ph__segs i:first-child { background: rgba(255, 255, 255, .95); }
+
+/* ---------------------------------------------------------------------------
+   KOL / UGC shares - someone else's post being amplified, so it is drawn as a
+   quoted card rather than as our own creative.
+   ------------------------------------------------------------------------- */
+.ph-ugc {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+.ph-ugc__head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.ph-ugc__av {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  flex: 0 0 auto;
+}
+.ph-ugc__who { font-size: 12px; font-weight: 700; color: var(--text-dim); }

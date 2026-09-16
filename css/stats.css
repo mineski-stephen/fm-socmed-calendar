@@ -1,0 +1,154 @@
+/* ============================================================================
+   stats.css — KPI cards and the hand-built SVG charts.
+   Charts inherit theme tokens through fill="var(--...)", so a theme flip
+   re-colours every chart with no re-render.
+   ========================================================================== */
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 11px;
+  margin-bottom: 18px;
+}
+.kpi {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 17px;
+  box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; gap: 3px;
+  min-width: 0;
+}
+.kpi__label {
+  font-size: 12px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+.kpi__value {
+  font-size: 30px; font-weight: 700; letter-spacing: -.025em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  color: var(--kpi-c, var(--text));
+}
+.kpi__sub {
+  font-size: 13px; color: var(--text-dim);
+  line-height: 1.35;
+  /* These explain what the number means, so they wrap rather than truncate -
+     a clipped "approved, scheduled or li..." is worse than two lines. */
+  overflow-wrap: anywhere;
+}
+.kpi__bar {
+  height: 5px; border-radius: 99px;
+  background: var(--surface-3);
+  overflow: hidden;
+  /* pinned to the bottom so cards stay aligned whether their sub wrapped
+     onto a second line or not */
+  margin-top: auto;
+  padding-top: 0;
+}
+.kpi__bar i {
+  display: block; height: 100%; border-radius: 99px;
+  background: var(--kpi-c, var(--accent));
+}
+
+.charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: 14px;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 17px 18px 18px;
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+.card--wide { grid-column: 1 / -1; }
+.card__head { margin-bottom: 11px; }
+.card__title { font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+.card__hint { font-size: 13px; color: var(--text-faint); margin-top: 1px; }
+.card__body { min-width: 0; }
+
+.chart { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { font-size: 13px; fill: var(--text-dim); }
+.chart .t-val { fill: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.chart .t-mut { fill: var(--text-faint); font-size: 12px; }
+.chart .grid  { stroke: var(--border-soft); stroke-width: 1; }
+.chart .track { fill: var(--surface-2); }
+
+.donutwrap { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.donutwrap .chart { width: 172px; flex: 0 0 auto; }
+.donut__hole {
+  font-size: 26px; font-weight: 700; fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.donut__sub { font-size: 12px; fill: var(--text-faint); }
+
+.legend {
+  display: flex; flex-direction: column; gap: 7px;
+  min-width: 150px; flex: 1;
+  font-size: 13.5px;
+}
+.legend__row { display: flex; align-items: center; gap: 7px; }
+.legend__sw { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; }
+.legend__name {
+  color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.legend__n {
+  margin-left: auto; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.legend__pct { color: var(--text-faint); font-size: 12.5px; min-width: 40px; text-align: right; }
+
+/* brand x platform heat grid */
+.matrix { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.matrix th, .matrix td {
+  padding: 9px 10px; text-align: center;
+  border-bottom: 1px solid var(--border-soft);
+}
+.matrix th {
+  font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+.matrix th:first-child, .matrix td:first-child { text-align: left; }
+.matrix td:first-child { font-weight: 600; white-space: nowrap; }
+.matrix__hd { display: inline-flex; align-items: center; gap: 5px; justify-content: center; }
+.matrix__hd img { width: 17px; height: 17px; border-radius: 50%; }
+.matrix__n {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 30px; padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 700; font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--accent) calc(var(--w, 0) * 1%), var(--surface-2));
+  color: var(--text);
+}
+.matrix__n--zero { color: var(--text-faint); font-weight: 500; background: none; }
+.matrix__tot { color: var(--text-dim); font-weight: 700; }
+
+.readiness { display: flex; flex-direction: column; gap: 12px; }
+.readiness__row { display: flex; flex-direction: column; gap: 5px; }
+.readiness__top {
+  display: flex; align-items: baseline; gap: 8px;
+  font-size: 14px;
+}
+.readiness__name { font-weight: 600; }
+.readiness__n {
+  margin-left: auto; font-size: 13px; color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.readiness__bar { height: 9px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.readiness__bar i { display: block; height: 100%; border-radius: 99px; background: var(--c, var(--accent)); }
+
+.statgrid-note {
+  margin-top: 16px; font-size: 13px; color: var(--text-faint);
+  display: flex; align-items: flex-start; gap: 7px;
+}
+
+@media (max-width: 620px) {
+  .kpis { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 9px; }
+  .kpi__value { font-size: 25px; }
+  .charts { grid-template-columns: 1fr; }
+  .card { padding: 12px; }
+  .matrix { display: block; overflow-x: auto; white-space: nowrap; }
+}

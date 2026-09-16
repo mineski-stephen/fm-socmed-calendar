@@ -1,0 +1,111 @@
+/* ============================================================================
+   mock-instagram.css  —  pairs with js/mock-instagram.js  (.mock-ig)
+   Reference: mock_layouts/instagram.jpg
+   ========================================================================== */
+
+.mock-ig {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.mock-ig__head {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 11px;
+}
+.mock-ig__avwrap {
+  width: 34px; height: 34px; border-radius: 50%;
+  padding: 2px;
+  background: conic-gradient(from 160deg, #f9ce34, #ee2a7b, #6228d7, #f9ce34);
+  flex: 0 0 auto;
+}
+.mock-ig__av {
+  width: 100%; height: 100%; border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--surface);
+}
+.mock-ig__name {
+  font-size: 13px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 5px;
+  min-width: 0;
+}
+.mock-ig__name[data-act="open"]:not(.is-inert):hover { text-decoration: underline; }
+.mock-ig__burger { margin-left: auto; color: var(--text-dim); }
+.mock-ig__burger .glyph { width: 19px; height: 19px; }
+
+/* --------------------------- media / carousel ---------------------------- */
+
+.mock-ig__media { position: relative; background: var(--surface-2); overflow: hidden; }
+
+.igcar { position: relative; overflow: hidden; }
+.igcar__track {
+  display: flex;
+  transform: translateX(calc(var(--i, 0) * -100%));
+  transition: transform .28s cubic-bezier(.22, .61, .36, 1);
+}
+.igcar.is-dragging .igcar__track { transition: none; }
+.igcar__slide { flex: 0 0 100%; min-width: 0; }
+
+.igcar__chip {
+  position: absolute; top: 10px; right: 10px; z-index: 4;
+  padding: 3px 9px;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, .62);
+  color: #fff;
+  font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.igcar__nav {
+  position: absolute; top: 50%; translate: 0 -50%;
+  z-index: 4;
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 0; padding: 0;
+  background: rgba(255, 255, 255, .88);
+  color: #15181c;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 15px; line-height: 1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .25);
+}
+.igcar__nav--prev { left: 8px; }
+.igcar__nav--next { right: 8px; }
+.igcar__nav[disabled] { opacity: 0; pointer-events: none; }
+
+.igcar__dots {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 7px 0 1px;
+}
+.igcar__dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  border: 0; padding: 0;
+  background: var(--surface-3);
+  cursor: pointer;
+}
+.igcar__dot[aria-current="true"] { background: var(--link); }
+
+/* ------------------------------ actions ---------------------------------- */
+
+.mock-ig__bar {
+  display: flex; align-items: center; gap: 15px;
+  padding: 9px 11px 5px;
+  color: var(--text);
+}
+.mock-ig__act {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.mock-ig__act .glyph { width: 21px; height: 21px; }
+.mock-ig__act--like .glyph { color: var(--pf-instagram); }
+.mock-ig__bar .spacer { flex: 1; }
+.mock-ig__save .glyph { width: 20px; height: 20px; }
+
+.mock-ig__cap { padding: 3px 11px 0; }
+.mock-ig__handle { font-weight: 700; margin-right: 5px; }
+.mock-ig__time {
+  padding: 6px 11px 11px;
+  font-size: 10.5px; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: .03em;
+}

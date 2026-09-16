@@ -1,0 +1,157 @@
+/* ============================================================================
+   tokens.css — the only place colours are defined.
+   Light is the base; dark overrides ONLY the tokens. A resolved data-theme
+   ("light" | "dark") is always written onto <html> by js/theme.js, so CSS never
+   has to deal with the tri-state "system" value or duplicate a media query.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* surfaces */
+  --bg:           #f4f6f8;
+  --bg-elev:      #ffffff;
+  --surface:      #ffffff;
+  --surface-2:    #f0f2f5;
+  --surface-3:    #e4e6eb;
+  --border:       #d9dde2;
+  --border-soft:  #e8ebee;
+
+  /* text */
+  --text:         #10131a;
+  --text-dim:     #59606c;
+  --text-faint:   #8b929e;
+  --text-inverse: #ffffff;
+
+  /* app accent (deliberately NOT a brand colour — brands get their own hues) */
+  --accent:       #4f46e5;
+  --accent-2:     #a855f7;
+  --accent-soft:  #eceafe;
+  --on-accent:    #ffffff;
+
+  /* caption tokens — links and hashtags are visibly different from each other */
+  --link:         #1a73e8;
+  --hash:         #1a73e8;
+  --mention:      #1a73e8;
+
+  /* status - one pair per stage of the workflow */
+  --st-needs:          #b45309;
+  --st-needs-bg:       #fef3c7;
+  --st-revision:       #c2410c;
+  --st-revision-bg:    #ffedd5;
+  --st-approval:       #1d4ed8;
+  --st-approval-bg:    #dbeafe;
+  --st-approved:       #0f766e;
+  --st-approved-bg:    #ccfbf1;
+  --st-scheduled:      #4338ca;
+  --st-scheduled-bg:   #e0e7ff;
+  --st-posted:         #15803d;
+  --st-posted-bg:      #dcfce7;
+  --st-resched:        #7e22ce;
+  --st-resched-bg:     #f3e8ff;
+  --st-unknown:        #6b7280;
+  --st-unknown-bg:     #eceff3;
+
+  /* feedback */
+  --warn:         #b45309;
+  --warn-bg:      #fef3c7;
+  --danger:       #b91c1c;
+  --danger-bg:    #fee2e2;
+
+  /* chrome */
+  --shadow-sm:  0 1px 2px rgba(16, 19, 26, .06), 0 1px 3px rgba(16, 19, 26, .04);
+  --shadow-md:  0 2px 6px rgba(16, 19, 26, .07), 0 8px 24px rgba(16, 19, 26, .06);
+  --shadow-lg:  0 10px 40px rgba(16, 19, 26, .14);
+  --ring:       0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+
+  --radius-sm: 6px;
+  --radius:    10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  /* placeholder weave — tuned separately per theme so it stays subtle in both */
+  --ph-a: #dfe3e9;
+  --ph-b: #eef1f5;
+
+  /* layout */
+  --strip-w:     440px;
+  --appbar-h:    62px;
+  --maxw:        1500px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg:           #0e1013;
+  --bg-elev:      #15181c;
+  --surface:      #191d22;
+  --surface-2:    #22262c;
+  --surface-3:    #2c3138;
+  --border:       #2f353c;
+  --border-soft:  #23282e;
+
+  --text:         #e8eaed;
+  --text-dim:     #a5adb8;
+  --text-faint:   #737b86;
+  --text-inverse: #0e1013;
+
+  --accent:       #8b83f7;
+  --accent-2:     #c084fc;
+  --accent-soft:  #241f47;
+  --on-accent:    #10121a;
+
+  --link:         #6aa9ff;
+  --hash:         #6aa9ff;
+  --mention:      #6aa9ff;
+
+  --st-needs:          #fbbf24;
+  --st-needs-bg:       #3a2a06;
+  --st-revision:       #fb923c;
+  --st-revision-bg:    #3b1f08;
+  --st-approval:       #7dafff;
+  --st-approval-bg:    #12244a;
+  --st-approved:       #5eead4;
+  --st-approved-bg:    #0a2f2b;
+  --st-scheduled:      #a5b4fc;
+  --st-scheduled-bg:   #1e1f4d;
+  --st-posted:         #4ade80;
+  --st-posted-bg:      #10301c;
+  --st-resched:        #c79cff;
+  --st-resched-bg:     #2b1a44;
+  --st-unknown:        #9aa3ae;
+  --st-unknown-bg:     #262b31;
+
+  --warn:         #fbbf24;
+  --warn-bg:      #3a2a06;
+  --danger:       #f87171;
+  --danger-bg:    #3b1414;
+
+  --shadow-sm:  0 1px 2px rgba(0, 0, 0, .5);
+  --shadow-md:  0 2px 8px rgba(0, 0, 0, .5), 0 12px 30px rgba(0, 0, 0, .38);
+  --shadow-lg:  0 14px 46px rgba(0, 0, 0, .62);
+
+  --ph-a: #23282f;
+  --ph-b: #2b3138;
+}
+
+/* ---------------------------------------------------------------------------
+   Brand + platform hues. These are identity colours, so they do NOT flip with
+   the theme — only their soft backgrounds do.
+   ------------------------------------------------------------------------- */
+:root {
+  --brand-funalomax:          #e4322b;
+  --brand-funalomax-studios:  #7c3aed;
+  --brand-solaire-online:     #c0932f;
+  --brand-unknown:            #7b8493;
+
+  --pf-facebook:    #1877f2;
+  --pf-instagram:   #e1306c;
+  --pf-x:           #0f1419;
+  --pf-tiktok:      #fe2c55;
+  --pf-youtube:     #ff0000;
+  --pf-linkedin:    #0a66c2;
+  --pf-unspecified: #8b929e;
+}
+
+/* X's mark is black; it needs a light value on a dark ground. */
+:root[data-theme="dark"] { --pf-x: #e8eaed; }

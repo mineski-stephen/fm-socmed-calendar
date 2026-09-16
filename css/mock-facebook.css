@@ -1,0 +1,97 @@
+/* ============================================================================
+   mock-facebook.css  —  pairs with js/mock-facebook.js  (.mock-fb)
+   Reference: mock_layouts/facebook.png
+   ========================================================================== */
+
+.mock-fb {
+  container-type: inline-size;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.mock-fb__head {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 11px 12px 8px;
+}
+.mock-fb__av {
+  width: 40px; height: 40px; border-radius: 50%;
+  object-fit: cover; flex: 0 0 auto;
+}
+.mock-fb__who { min-width: 0; flex: 1; }
+.mock-fb__name {
+  font-size: 13.5px; font-weight: 700; letter-spacing: -.01em;
+  color: var(--text);
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.mock-fb__name[data-act="open"]:not(.is-inert):hover { text-decoration: underline; }
+.mock-fb__meta {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11.5px; color: var(--text-faint);
+  margin-top: 1px;
+}
+.mock-fb__globe { width: 12px; height: 12px; opacity: .8; }
+.mock-fb__tools {
+  display: flex; align-items: center; gap: 4px;
+  color: var(--text-dim); flex: 0 0 auto;
+}
+.mock-fb__tool {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 15px; line-height: 1; color: var(--text-dim);
+}
+
+.mock-fb__cap { padding: 0 12px 10px; }
+
+.mock-fb__media { background: var(--surface-2); }
+
+.mock-fb__reacts {
+  display: inline-flex; align-items: center;
+  margin-left: auto;
+  padding-right: 4px;
+  flex: 0 0 auto;
+}
+.mock-fb__reacts img {
+  width: 19px; height: 19px; border-radius: 50%;
+  margin-left: -7px;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.mock-fb__reacts img:first-child { margin-left: 0; }
+
+.mock-fb__bar {
+  display: flex; align-items: center;
+  border-top: 1px solid var(--border-soft);
+  padding: 3px 7px;
+  gap: 1px;
+}
+.mock-fb__btn {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 7px 5px;
+  border-radius: 6px;
+  font-size: 12.5px; font-weight: 600;
+  color: var(--text-dim);
+  background: none; border: 0; cursor: default;
+  white-space: nowrap;
+}
+.mock-fb__btn .glyph { width: 16px; height: 16px; }
+.mock-fb__btn b {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+/* Once the card is narrow the three words stop fitting beside their counts and
+   the reactions. The glyph and the number still carry the meaning, so the word
+   is what gets dropped rather than letting the row cram together. */
+@container (max-width: 340px) {
+  .mock-fb__label { display: none; }
+  .mock-fb__btn { gap: 4px; }
+}
+@media (max-width: 400px) {
+  .mock-fb__btn { gap: 5px; padding: 7px 4px; font-size: 11.5px; }
+}
