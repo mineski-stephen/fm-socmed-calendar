@@ -27,7 +27,7 @@ import { renderStats } from './render-stats.js';
 import { initDayRail, bindCarousels, setCarousel } from './interactions.js';
 import { getOverdue, getUpcoming, expandByPlatform, getByDay } from './selectors.js';
 import * as lightbox from './lightbox.js';
-import { entryKey } from './render-post.js';
+import { entryKey, captionKey } from './render-post.js';
 
 const SCOPE = { SHELL: 1, FILTERS: 2, VIEW: 4, ALL: 7 };
 let pending = 0, queued = false;
@@ -479,15 +479,22 @@ const ACTIONS = {
     if (url) window.open(url, '_blank', 'noopener,noreferrer');
   },
 
+  /*
+   * "See more" redraws only the thing it was clicked in.
+   *
+   * The same post can be on screen twice at once - in a day strip, and in the
+   * spotlight over the top of it - so the expanded flag is keyed by context as
+   * well as by post. Before this, one click toggled both copies and rebuilt
+   * the whole day view behind the overlay, which is why the strip underneath
+   * visibly shifted every time.
+   */
   'expand-caption'(el) {
-    const id = el.dataset.post;
-    if (state.expanded.has(id)) state.expanded.delete(id);
-    else state.expanded.add(id);
-    // Re-render just this card's view region rather than the whole app - and
-    // the overlay too when it is up, because it sits outside every view and a
-    // view-scoped render would leave its caption clamped and the button dead.
-    scheduleRender(SCOPE.VIEW);
-    lightbox.rerender();
+    const key = captionKey(el.dataset.post, el.dataset.scope || '');
+    if (state.expanded.has(key)) state.expanded.delete(key);
+    else state.expanded.add(key);
+
+    if (el.dataset.scope === lightbox.SCOPE) lightbox.rerender();
+    else scheduleRender(SCOPE.VIEW);
   },
 
   'carousel-dot'(el) {

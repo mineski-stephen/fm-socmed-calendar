@@ -241,7 +241,9 @@
    up and fades. Deliberately not in the corner with the error toasts - this is
    feedback for something you just clicked, so it belongs where you are looking. */
 .copytoast {
-  position: fixed; left: 50%; top: 50%; z-index: 210;
+  /* Above the spotlight overlay (z 300), not under it: captions are copied
+     from in there too, and a confirmation nobody can see is not one. */
+  position: fixed; left: 50%; top: 50%; z-index: 320;
   display: flex; align-items: center; gap: 9px;
   padding: 11px 18px;
   border-radius: 99px;

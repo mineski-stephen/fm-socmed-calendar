@@ -550,7 +550,13 @@ resolved from where the pointer landed rather than from what it hit: the posts e
 inert, so the event never reaches them. Focus returns to whatever opened the overlay.
 
 A post's own controls work here too: **See more** on a long caption expands it in place, and
-clicking the caption copies it.
+clicking the caption copies it — the confirmation is drawn above the overlay, not under it.
+
+**Expanding a caption here does not expand the copy of it in the strip behind.** The same post
+can be on screen twice at once, and they are two separate things to read. Captions therefore
+remember their expanded state per context as well as per post, and a click in the overlay
+redraws only the overlay: before this, one click toggled both copies and rebuilt the whole day
+view behind the spotlight, which is why the strip underneath visibly shifted every time.
 
 The header is informational in this view rather than a collapse toggle - there is nothing to
 collapse into an overlay whose only job is to show the post - and a post that is collapsed

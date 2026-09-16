@@ -24,8 +24,11 @@
 
 import { escapeHtml, clamp, prefersReducedMotion } from './utils.js';
 import { brandMeta } from './data.js';
-import { postHeaderHTML, noteHTML, simpleCardHTML } from './render-post.js';
+import { postHeaderHTML, noteHTML, simpleCardHTML, withCaptionScope } from './render-post.js';
 import { mockFor } from './mocks.js';
+
+/** Caption expansion inside the overlay is stored under this scope. */
+export const SCOPE = 'lb';
 
 let box = null;          // the overlay element, while open
 let viewport = null;     // the window the track slides behind
@@ -48,12 +51,18 @@ function slideHTML(entry) {
   const mock = mockFor(platformKey);
   const b = brandMeta(post.brandKey);
 
-  const frame = mock
+  /*
+   * Built under this overlay's own caption scope, so "See more" here expands
+   * the post you are looking at and leaves the copy of it in the strip behind
+   * exactly as it was. Without it both carry the same key and one click
+   * silently rebuilt a day view nobody could see.
+   */
+  const frame = withCaptionScope(SCOPE, () => (mock
     ? `${postHeaderHTML(post, platformKey)}
        <div class="lb__mock">${mock(post, platformKey)}</div>
        ${noteHTML(post)}`
     : `<div class="lb__mock lb__mock--simple">
-         ${simpleCardHTML(post, platformKey, { showMedia: true })}</div>`;
+         ${simpleCardHTML(post, platformKey, { showMedia: true })}</div>`));
 
   // lb__fitbox holds the SCALED height so the caption sits right under the
   // post; lb__fit carries the scale itself. A transform alone would leave the

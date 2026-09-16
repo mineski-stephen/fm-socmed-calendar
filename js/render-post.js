@@ -76,6 +76,32 @@ function tokenise(raw) {
   return out + escapeHtml(raw.slice(last));
 }
 
+/* ---------------------------------------------------------------------------
+   Which context a caption is being drawn in.
+
+   The same post appears in a day strip AND, at the same moment, inside the
+   spotlight over the top of it. They are two separate things to read, so
+   expanding one must not expand the other - and expanding the one you cannot
+   see is worse than useless, because rebuilding the strip underneath the
+   overlay is work nobody asked for.
+
+   A module-level value rather than an argument threaded through every mock:
+   captionHTML is called from six mock builders, none of which have any other
+   reason to know where their output is going. It is set and cleared around one
+   synchronous build, so there is never more than one scope in play.
+   ------------------------------------------------------------------------- */
+let captionScope = '';
+
+/** Build `fn`'s markup with captions keyed to `scope`. Restores on the way out. */
+export function withCaptionScope(scope, fn) {
+  const prev = captionScope;
+  captionScope = scope;
+  try { return fn(); } finally { captionScope = prev; }
+}
+
+/** The key a caption's expanded state is stored under, for a given context. */
+export const captionKey = (id, scope = '') => (scope ? `${scope}::${id}` : id);
+
 export function captionHTML(text, { clamp = false, id = '', sm = false } = {}) {
   const raw = String(text ?? '');
   if (!raw.trim()) {
@@ -84,11 +110,13 @@ export function captionHTML(text, { clamp = false, id = '', sm = false } = {}) {
 
   const body = tokenise(raw);
 
-  const expanded = id && state.expanded.has(id);
+  const scope = captionScope;
+  const expanded = id && state.expanded.has(captionKey(id, scope));
   const doClamp = clamp && !expanded;
   const cls = `cap${sm ? ' cap--sm' : ''}${doClamp ? ' cap--clamp' : ''}`;
   const more = clamp && id
-    ? `<button class="cap-more" data-act="expand-caption" data-post="${escapeHtml(id)}">` +
+    ? `<button class="cap-more" data-act="expand-caption" data-post="${escapeHtml(id)}"` +
+      `${scope ? ` data-scope="${escapeHtml(scope)}"` : ''}>` +
       `${expanded ? 'See less' : 'See more'}</button>`
     : '';
 
