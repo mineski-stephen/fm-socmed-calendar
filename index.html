@@ -6,8 +6,12 @@
 <title>Social Media Calendar — FUNalo MAX</title>
 <meta name="theme-color" content="#ffffff">
 <link rel="icon" href="img/profile_funalomax.png">
-<link rel="preload" href="font/HelveticaNeue-Roman.otf" as="font" type="font/otf" crossorigin>
-<link rel="preload" href="font/HelveticaNeue-Medium.otf" as="font" type="font/otf" crossorigin>
+<!-- One variable file carries every weight the page uses, so this single
+     preload covers the whole of it. The italic file is not preloaded: almost
+     nothing on the page is italic, and fetching it up front would compete with
+     the sheet. -->
+<link rel="preload" href="font/Inter-VariableFont_opsz,wght.ttf" as="font"
+      type="font/ttf" crossorigin>
 
 <!-- Order matters only for the first two: tokens define the variables everything else reads. -->
 <link rel="stylesheet" href="css/fonts.css">
@@ -23,6 +27,7 @@
 <link rel="stylesheet" href="css/mock-instagram.css">
 <link rel="stylesheet" href="css/mock-x.css">
 <link rel="stylesheet" href="css/stats.css">
+<link rel="stylesheet" href="css/lightbox.css">
 <link rel="stylesheet" href="css/states.css">
 </head>
 <body>
@@ -63,6 +68,20 @@
       </label>
     </div>
 
+    <!-- The page is read-only by design, so this is the way back to the place
+         the data is actually edited. href is filled in by js/main.js from
+         SHEET_URL, so the address lives in exactly one file. -->
+    <a class="btn btn--icon" id="btn-sheet" href="#" target="_blank" rel="noopener noreferrer"
+       title="Open the tracker sheet in a new tab">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3.5" y="3.5" width="17" height="17" rx="2.2" fill="none"
+              stroke="currentColor" stroke-width="1.9"/>
+        <path d="M3.5 9.2h17M3.5 14.8h17M9.6 3.5v17M15.2 3.5v17" stroke="currentColor"
+              stroke-width="1.5"/>
+      </svg>
+      <span class="btn__label">Sheet</span>
+    </a>
+
     <div class="seg" role="group" aria-label="Post rendering mode">
       <button class="seg__btn" data-act="set-mode" data-mode="simple">Simple</button>
       <button class="seg__btn" data-act="set-mode" data-mode="layout">Layout</button>
@@ -100,10 +119,6 @@
   <button class="tab" role="tab" data-act="set-view" data-view="stats">Stats</button>
 </nav>
 
-<!-- Raised when the sheet has postings whose date went by without ever being
-     marked Posted. Sits above the filter bar so it is present on every tab. -->
-<div class="alertbar" id="alertbar" hidden></div>
-
 <div class="filterbar" id="filterbar" hidden></div>
 
 <main class="main" id="main">
@@ -113,7 +128,13 @@
   <div class="statuspane" id="statuspane" hidden></div>
 </main>
 
-<div class="toasts" id="toasts" aria-live="polite"></div>
+<!-- One corner for everything that talks to the user: the standing notices
+     (past due, coming up) and the transient toasts, queued rather than stacked
+     on top of each other. Fixed, so it is present on every tab. -->
+<div class="cornerstack">
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <div class="alertbar" id="alertbar" aria-live="polite" hidden></div>
+</div>
 
 <noscript>
   <div class="bootmsg">

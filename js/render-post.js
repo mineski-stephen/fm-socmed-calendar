@@ -8,7 +8,7 @@
 
 import { GLYPHS, PLAY_BADGE, CAROUSEL_DEFAULT } from './config.js';
 import { escapeHtml } from './utils.js';
-import { brandMeta, platformMeta, typeMeta, statusMeta } from './data.js';
+import { platformMeta, typeMeta, statusMeta } from './data.js';
 import { state } from './state.js';
 import { isOverdue } from './selectors.js';
 
@@ -282,12 +282,21 @@ export function postHeaderHTML(post, platformKey) {
       title="${isCollapsed ? 'Show this post' : 'Hide this post'}">
       ${platformMark(platformKey, 'pcard__logo')}
       <span class="pcard__pf">${escapeHtml(pMeta.label)}</span>
-      ${post.isCrosspost ? crosspostMark(post, platformKey) : ''}
-      ${incompleteMark(post)}
-      ${overdueMark(post)}
-      ${statusPill(post)}
-      <span class="pcard__type">${escapeHtml(typeLabel)}</span>
+      <span class="pcard__tags">
+        ${post.isCrosspost ? crosspostMark(post, platformKey) : ''}
+        ${incompleteMark(post)}
+        ${overdueMark(post)}
+        ${statusPill(post)}
+        <span class="pcard__type">${escapeHtml(typeLabel)}</span>
+      </span>
       <span class="pcard__time">${escapeHtml(post.timeLabel)}</span>
+      <button class="pcard__zoom" data-act="spotlight" data-entry="${escapeHtml(key)}"
+              title="Examine this post" aria-label="Examine this post">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
       <svg class="pcard__chev" viewBox="0 0 24 24" aria-hidden="true">
         <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2"
               stroke-linecap="round" stroke-linejoin="round"/>

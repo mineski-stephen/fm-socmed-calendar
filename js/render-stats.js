@@ -4,7 +4,6 @@
    screen rather than always about the whole sheet.
    ========================================================================== */
 
-import { PLATFORM_ORDER } from './config.js';
 import { escapeHtml } from './utils.js';
 import { MONTH_ABBR } from './config.js';
 import { partsFromKey, monthLabel } from './dates.js';
@@ -114,8 +113,12 @@ export function renderStats(container) {
        </div>`),
 
     card(`Posts per day \u00b7 ${monthLabel(state.month.y, state.month.mo)}`,
-      'Clustering and gaps in the schedule',
-      dayColumns(s.perDay, { width: 900 }), true),
+      'Clustering and gaps in the schedule, and how much of each day shipped',
+      dayColumns(s.perDay, { width: 900 }) +
+      legend([
+        { label: 'Posted', value: s.posted, hue: 'var(--st-posted)' },
+        { label: 'Not posted', value: s.shown - s.posted, hue: 'var(--accent)' },
+      ]), true),
 
     card('Brand \u00d7 platform', 'Which brand covers which channel',
       matrixHTML(s), true),

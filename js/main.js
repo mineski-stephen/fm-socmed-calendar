@@ -6,7 +6,7 @@
    anywhere can never leak listeners or quietly lose behaviour.
    ========================================================================== */
 
-import { AUTO_REFRESH_MS, LOADER_MIN_MS } from './config.js';
+import { AUTO_REFRESH_MS, LOADER_MIN_MS, ALERT_SNOOZE_MS, SHEET_URL } from './config.js';
 import { $ } from './utils.js';
 import { todayKey, partsFromKey } from './dates.js';
 import { loadPosts, buildFacets, monthsWithData } from './data.js';
@@ -21,10 +21,13 @@ import {
 import { renderCalendar, resetCalendarCache } from './render-calendar.js';
 import {
   renderDayView, refreshStripBodies, resetDayViewCache, dayViewKey, sizeRail,
+  hydrateVisible, setStripFilter, clearStripFilters, setRailWidthHook,
 } from './render-dayview.js';
 import { renderStats } from './render-stats.js';
 import { initDayRail, bindCarousels, setCarousel } from './interactions.js';
-import { getOverdue } from './selectors.js';
+import { getOverdue, getUpcoming, expandByPlatform, getByDay } from './selectors.js';
+import * as lightbox from './lightbox.js';
+import { entryKey } from './render-post.js';
 
 const SCOPE = { SHELL: 1, FILTERS: 2, VIEW: 4, ALL: 7 };
 let pending = 0, queued = false;
@@ -83,7 +86,13 @@ function render(scope) {
         // Capture the target BEFORE initDayRail: its initial setActive() fires
         // onDayChange, which would otherwise rewrite selectedDayKey to day 1.
         const wantDay = pendingScrollDay || state.selectedDayKey;
-        rail = initDayRail(renderDayView(container), { onDayChange: onRailDay });
+        // Drop the old controller first: renderDayView re-sizes the rail, and
+        // the width hook must not drive a rail that is about to be replaced.
+        rail = null;
+        rail = initDayRail(renderDayView(container), {
+          onDayChange: onRailDay,
+          onMoved: hydrateVisible,
+        });
         if (wantDay) {
           state.selectedDayKey = wantDay;
           rail?.goToKey(wantDay, { smooth: false });
@@ -108,6 +117,12 @@ function render(scope) {
 
 function onRailDay(key) {
   state.selectedDayKey = key;
+  // A strip's platform lens belongs to the day you were reading, so moving on
+  // drops it. Leaving it set would hide posts on a day nobody ever filtered.
+  clearStripFilters(key);
+  // The rail can be moved without a scroll event ever firing, so this is where
+  // the strips that just came into range get built.
+  hydrateVisible();
   const pos = $('[data-railpos]');
   if (pos) {
     const p = partsFromKey(key);
@@ -127,6 +142,13 @@ function adoptPosts(posts, fingerprint = '') {
   state.status = 'ready';
   state.error = null;
   invalidate();
+
+  // The sheet changed, so whatever was dismissed was dismissed about a
+  // different set of postings. Both notices get to speak again.
+  state.alertSnoozeUntil = 0;
+  state.upcomingSnoozeUntil = 0;
+  state.alertAckCount = -1;
+  state.upcomingAckCount = -1;
 
   // Open on the first month that actually has posts rather than the real
   // current month, which would often be empty.
@@ -245,8 +267,22 @@ const ACTIONS = {
     scheduleRender(SCOPE.SHELL);
   },
 
+  'open-facet'(el) {
+    const field = el.dataset.field;
+    state.openFacet = state.openFacet === field ? null : field;
+    renderFilterBar();
+  },
+
   'toggle-filter'(el) {
+    // The dropdown stays open: picking two platforms should not mean opening
+    // the menu twice.
     toggleFilter(el.dataset.field, el.dataset.value);
+    scheduleRender(SCOPE.FILTERS | SCOPE.VIEW);
+  },
+
+  'clear-facet'(el) {
+    state.filters[el.dataset.field].clear();
+    invalidate();
     scheduleRender(SCOPE.FILTERS | SCOPE.VIEW);
   },
 
@@ -257,6 +293,7 @@ const ACTIONS = {
   },
 
   'clear-filters'() {
+    state.openFacet = null;
     clearFilters();
     scheduleRender(SCOPE.FILTERS | SCOPE.VIEW);
   },
@@ -279,6 +316,7 @@ const ACTIONS = {
     for (const f of FILTER_FIELDS) state.filters[f].clear();
     state.filters.overdueOnly = true;
     state.alertAckCount = late.length;
+    state.alertSnoozeUntil = 0;   // reviewed, not postponed
 
     const first = late[0];
     setMonth(+first.monthKey.slice(0, 4), +first.monthKey.slice(5, 7) - 1);
@@ -291,9 +329,92 @@ const ACTIONS = {
     scheduleRender(SCOPE.ALL);
   },
 
+  /* ---------------------------- the overlay ------------------------------ */
+
+  /** One post, examined on its own. */
+  spotlight(el) {
+    const wanted = el.dataset.entry;
+    const all = expandByPlatform(state.posts);
+    const at = all.findIndex((e) => entryKey(e.post, e.platformKey) === wanted);
+    if (at < 0) return;
+    lightbox.open([all[at]], 0, dayTitle(all[at].post.dateKey));
+  },
+
+  /**
+   * Every post for one day, as a carousel. Built from the FILTERED day list so
+   * the overlay shows what the strip behind it shows, rather than quietly
+   * reintroducing posts the user has filtered out.
+   */
+  'expand-day'(el) {
+    const key = el.dataset.key;
+    const list = expandByPlatform(getByDay().get(key) || []);
+    if (!list.length) return;
+    lightbox.open(list, 0, dayTitle(key));
+  },
+
+  'lightbox-close'() { lightbox.close(); },
+  'lightbox-prev'() { lightbox.step(-1); },
+  'lightbox-next'() { lightbox.step(1); },
+
+  /*
+   * Narrows to what is about to go out and opens the day the next one sits on,
+   * the same way the past-due notice does. The window is a couple of days, so
+   * the month is the one the soonest posting is in, not necessarily this one.
+   */
+  'show-upcoming'() {
+    const soon = getUpcoming();
+    if (!soon.length) return;
+
+    for (const f of FILTER_FIELDS) state.filters[f].clear();
+    state.filters.overdueOnly = false;
+    state.upcomingAckCount = soon.length;
+    state.upcomingSnoozeUntil = 0;
+
+    const first = soon[0];
+    setMonth(+first.monthKey.slice(0, 4), +first.monthKey.slice(5, 7) - 1);
+    state.selectedDayKey = first.dateKey;
+    pendingScrollDay = first.dateKey;
+    state.view = 'day';
+    savePrefs();
+    resetDayViewCache();
+    invalidate();
+    scheduleRender(SCOPE.ALL);
+  },
+
+  /*
+   * Dismissing is "not now", not "never".
+   *
+   * The count is remembered so the notice returns the moment the number goes
+   * up, and a snooze deadline is set so it also returns on its own after
+   * ALERT_SNOOZE_MS. Work that is still past due ten minutes later is still
+   * past due, and a box that stayed shut for the rest of the session would
+   * quietly turn a real backlog into nobody's problem.
+   */
   'dismiss-alert'() {
     state.alertAckCount = getOverdue().length;
+    state.alertSnoozeUntil = Date.now() + ALERT_SNOOZE_MS;
     renderAlert();
+    armSnooze();
+  },
+
+  'dismiss-upcoming'() {
+    state.upcomingAckCount = getUpcoming().length;
+    state.upcomingSnoozeUntil = Date.now() + ALERT_SNOOZE_MS;
+    renderAlert();
+    armSnooze();
+  },
+
+  /*
+   * A platform chip in a strip header narrows THAT strip to that platform.
+   * Local and temporary by design: the global filter bar would empty every
+   * other day in the month, which is not what "show me just the Instagram
+   * posts on the 18th" means.
+   */
+  'strip-platform'(el) {
+    const strip = setStripFilter(el.dataset.key, el.dataset.platform);
+    // The body was replaced wholesale, so any carousel inside it is new DOM
+    // and needs its swipe handler back.
+    if (strip) bindCarousels(strip, state.carousels);
   },
 
   'prev-month'() { setMonth(state.month.y, state.month.mo - 1); afterMonthChange(); },
@@ -329,8 +450,11 @@ const ACTIONS = {
     const id = el.dataset.post;
     if (state.expanded.has(id)) state.expanded.delete(id);
     else state.expanded.add(id);
-    // Re-render just this card's view region rather than the whole app.
+    // Re-render just this card's view region rather than the whole app - and
+    // the overlay too when it is up, because it sits outside every view and a
+    // view-scoped render would leave its caption clamped and the button dead.
     scheduleRender(SCOPE.VIEW);
+    lightbox.rerender();
   },
 
   'carousel-dot'(el) {
@@ -383,6 +507,113 @@ const ACTIONS = {
   },
 };
 
+/* ------------------------------ notifications ------------------------------ */
+
+/**
+ * Bring a dismissed notice back when its snooze runs out.
+ *
+ * One timer for both notices, re-armed for whichever deadline is nearest, so
+ * dismissing twice does not leave two timers racing each other.
+ */
+let snoozeTimer = 0;
+function armSnooze() {
+  clearTimeout(snoozeTimer);
+  const due = [state.alertSnoozeUntil, state.upcomingSnoozeUntil]
+    .filter((t) => t > Date.now());
+  if (!due.length) return;
+  const wait = Math.min(...due) - Date.now();
+  snoozeTimer = setTimeout(() => { renderAlert(); armSnooze(); }, wait + 50);
+}
+
+/* ---------------------------------------------------------------------------
+   Rolling the app bar out of the way.
+
+   Scrolling down hides it and scrolling up brings it back, so reading gets the
+   height and the controls are never more than a flick away. Two things drive
+   it: the window's own scroll on the calendar and stats tabs, and a strip's
+   internal scroll in the day view, where the page itself never scrolls at all.
+   Both feed one state, so the bar cannot end up half-hidden.
+
+   Hiding it makes the rail taller, so the strips are re-measured on every
+   toggle - and for a moment after, because that resize moves the very
+   scrollTop that is being watched. Without that pause the two would drive each
+   other: taller strip, less to scroll, reads as scrolling up, bar returns,
+   shorter strip, and round again.
+   ------------------------------------------------------------------------- */
+
+const CHROME_ENGAGE = 8;      // px of travel before a scroll counts as intent
+let chromeSettleUntil = 0;
+
+/**
+ * Write the app bar's and tab row's real heights into CSS variables.
+ *
+ * The bar wraps to two rows once the window is narrow enough, so the amount of
+ * space it gives back when it rolls up is not a constant. Measuring it is the
+ * difference between the strips growing by exactly the right amount and a band
+ * of empty page being left behind on the screens that can least afford it.
+ */
+function measureChrome() {
+  const bar = document.querySelector('.appbar');
+  const tabs = document.querySelector('.tabs');
+  const root = document.documentElement.style;
+  if (bar) root.setProperty('--chrome-h', `${bar.offsetHeight}px`);
+  if (tabs) root.setProperty('--tabs-h', `${tabs.offsetHeight}px`);
+}
+
+function setChrome(hidden) {
+  if (state.chromeHidden === hidden) return;
+  if (performance.now() < chromeSettleUntil) return;
+  state.chromeHidden = hidden;
+  document.documentElement.dataset.chrome = hidden ? 'hidden' : 'shown';
+  chromeSettleUntil = performance.now() + 420;
+  // The rail's height is measured from where it sits on screen, which just
+  // changed. Re-measure after the transition so the strips take the space.
+  if (state.view === 'day') {
+    sizeRail();
+    setTimeout(sizeRail, 260);
+  }
+}
+
+/** Turn a scroll position and its previous value into show or hide. */
+function chromeFromScroll(top, last, floor) {
+  if (top <= floor) { setChrome(false); return; }
+  const dy = top - last;
+  if (dy > CHROME_ENGAGE) setChrome(true);
+  else if (dy < -CHROME_ENGAGE) setChrome(false);
+}
+
+function watchChrome() {
+  measureChrome();
+  // The bar re-wraps as the window narrows, and the sync label changes width as
+  // it counts up, so its height is not measured once and trusted forever.
+  if (typeof ResizeObserver === 'function') {
+    const ro = new ResizeObserver(measureChrome);
+    const bar = document.querySelector('.appbar');
+    const tabs = document.querySelector('.tabs');
+    if (bar) ro.observe(bar);
+    if (tabs) ro.observe(tabs);
+  }
+
+  let lastWindow = window.scrollY;
+  window.addEventListener('scroll', () => {
+    const top = window.scrollY;
+    chromeFromScroll(top, lastWindow, 12);
+    lastWindow = top;
+  }, { passive: true });
+
+  // Day view: the page does not scroll, the strip does. Delegated on capture
+  // because strip bodies are replaced constantly and scroll does not bubble.
+  let lastStrip = 0;
+  let lastStripEl = null;
+  document.addEventListener('scroll', (e) => {
+    const el = e.target;
+    if (!(el instanceof Element) || !el.classList?.contains('strip__body')) return;
+    if (el !== lastStripEl) { lastStripEl = el; lastStrip = el.scrollTop; return; }
+    chromeFromScroll(el.scrollTop, lastStrip, 12);
+    lastStrip = el.scrollTop;
+  }, { capture: true, passive: true });
+}
+
 /**
  * Clipboard write with a fallback.
  *
@@ -432,6 +663,15 @@ function copyToast(text, failed = false) {
   copyTimer = setTimeout(() => el.remove(), 1500);
 }
 
+/** "Friday, 18 September 2026" for the overlay heading. */
+function dayTitle(dateKey) {
+  const p = partsFromKey(dateKey);
+  if (!p) return '';
+  const d = new Date(p.y, p.mo, p.d);
+  return d.toLocaleDateString(undefined,
+    { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 function afterMonthChange() {
   ensureSelectedDay();
   resetDayViewCache();
@@ -441,6 +681,12 @@ function afterMonthChange() {
 /* ------------------------------ delegation --------------------------------- */
 
 document.addEventListener('click', (e) => {
+  // An open filter dropdown closes on any click outside itself.
+  if (state.openFacet && !e.target.closest('.facet')) {
+    state.openFacet = null;
+    renderFilterBar();
+  }
+
   // Real links keep their normal behaviour - including the ones inside a
   // caption, which would otherwise be swallowed by click-to-copy.
   if (e.target.closest('a[href]')) return;
@@ -466,6 +712,16 @@ document.addEventListener('change', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
+  // While the overlay is up it owns Escape and the arrow keys; letting them
+  // through would step the rail behind it.
+  if (lightbox.handleKey(e)) return;
+
+  if (e.key === 'Escape' && state.openFacet) {
+    state.openFacet = null;
+    renderFilterBar();
+    return;
+  }
+
   if (e.key !== 'Enter' && e.key !== ' ') {
     if (e.key === 'r' || e.key === 'R') {
       const t = e.target;
@@ -492,6 +748,14 @@ function boot() {
   applyTheme();
   watchSystemTheme(() => scheduleRender(SCOPE.SHELL));
 
+  // The sheet address lives in config.js only; the markup carries a placeholder
+  // href so the button is never a dead link if this ever fails to run.
+  const sheet = $('#btn-sheet');
+  if (sheet) sheet.href = SHEET_URL;
+
+  document.documentElement.dataset.chrome = 'shown';
+  watchChrome();
+
   window.addEventListener('hashchange', () => {
     // syncHash() uses replaceState, which fires no event, so anything that
     // lands here was a real navigation: re-apply it.
@@ -499,10 +763,21 @@ function boot() {
     scheduleRender(SCOPE.ALL);
   });
 
+  // Re-centre whenever the strips change width. Every strip moved, so the
+  // offset that had the selected day in the middle now has it half off the
+  // edge - which is exactly the sliced-off look the fitting is there to avoid.
+  setRailWidthHook(() => {
+    if (state.view !== 'day' || !rail) return;
+    rail.goToKey(state.selectedDayKey, { smooth: false });
+    rail.syncBar?.();
+  });
+
   window.addEventListener('resize', () => {
     if (state.view !== 'day') return;
+    // sizeRail divides the new width into whole strips, so this is what keeps
+    // a resized window from leaving a sliced-off column at each edge.
     sizeRail();
-    rail?.syncBar?.();   // the scrollbar thumb is sized from the rail's width
+    rail?.syncBar?.();   // the day box is sized from the rail's width
   });
 
   // Re-read the sheet every minute. The poll is silent and, when the CSV comes
@@ -519,8 +794,14 @@ function boot() {
     if (Date.now() - state.syncedAt > AUTO_REFRESH_MS) refresh({ quiet: true });
   });
 
-  // Keeps the "synced 20s ago" label honest between polls.
-  setInterval(() => { if (state.status === 'ready') syncSyncLabel(); }, 15000);
+  // Keeps the "synced 20s ago" label honest between polls. The notices ride
+  // along, because "coming up" is measured against today: a page left open
+  // overnight would otherwise still be warning about yesterday's window.
+  setInterval(() => {
+    if (state.status !== 'ready') return;
+    syncSyncLabel();
+    renderAlert();
+  }, 15000);
 
   initialLoad();
 }

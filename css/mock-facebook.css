@@ -52,6 +52,7 @@
   margin-left: auto;
   padding-right: 4px;
   flex: 0 0 auto;
+  align-self: center;
 }
 .mock-fb__reacts img {
   width: 19px; height: 19px; border-radius: 50%;
@@ -60,28 +61,60 @@
 }
 .mock-fb__reacts img:first-child { margin-left: 0; }
 
+/* ---------------------------------------------------------------------------
+   The action bar.
+
+   Everything on a row shares one baseline. Centring an icon, a word and a
+   number in a flex row lines up their BOXES, which is not the same thing: a
+   line box carries the font's descender space below the text, and the three
+   items were three different sizes, so the parts you actually see ended up on
+   three slightly different lines. Aligning on the baseline instead puts the
+   word and the count on the same line by construction, and the icon - which
+   has no baseline of its own - is placed against it deliberately.
+   ------------------------------------------------------------------------- */
+
 .mock-fb__bar {
-  display: flex; align-items: center;
+  display: flex; align-items: stretch;
   border-top: 1px solid var(--border-soft);
   padding: 3px 7px;
   gap: 1px;
 }
 .mock-fb__btn {
-  flex: 0 1 auto;
+  flex: 1 1 0;
   min-width: 0;
-  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-  padding: 7px 5px;
+  display: inline-flex; align-items: baseline; justify-content: center; gap: 6px;
+  padding: 8px 5px;
   border-radius: 6px;
   font-size: 12.5px; font-weight: 600;
+  line-height: 1;
   color: var(--text-dim);
   background: none; border: 0; cursor: default;
   white-space: nowrap;
 }
-.mock-fb__btn .glyph { width: 16px; height: 16px; }
+
+/*
+ * The glyph has no text in it, so it has no baseline of its own and the
+ * browser synthesises one from the bottom of its box - which parks the whole
+ * 16px icon on top of the baseline, floating above the word beside it. The
+ * offset drops it back down until its middle sits on the middle of the text's
+ * cap band, which is where a platform's own icons sit.
+ *
+ * position/top rather than a margin: a margin would move the baseline the
+ * browser is aligning TO, so it would cancel itself out. This is a purely
+ * visual nudge, and the row's height is unchanged by it.
+ */
+.mock-fb__btn .glyph {
+  width: 16px; height: 16px;
+  position: relative;
+  top: 3.5px;
+}
+
+/* Same size as the label, so the two genuinely share a baseline rather than
+   sitting a fraction of a pixel apart. The count is dimmer instead. */
 .mock-fb__btn b {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--text-faint);
 }
 

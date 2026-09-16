@@ -216,3 +216,133 @@
   display: inline-flex; align-items: center; gap: 4px;
 }
 .linkbtn:hover { text-decoration: underline; }
+
+/* ============================================================================
+   Filter facets.
+
+   One dropdown per facet rather than a wall of chips. With four facets and a
+   dozen values each, the chips pushed the calendar most of a screen down; the
+   buttons say what is selected so the bar still reads at a glance when closed.
+   ========================================================================== */
+
+.facets { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.facet { position: relative; }
+
+.facet__btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 9px 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12.5px; font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.facet__btn:hover { background: var(--surface-2); color: var(--text); }
+.facet.is-open .facet__btn {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.facet__title { max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
+
+.facet__n {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 17px; height: 17px; padding: 0 5px;
+  border-radius: 99px;
+  background: var(--accent); color: var(--on-accent);
+  font-size: 10.5px; font-weight: 700;
+}
+
+.facet__chev {
+  width: 14px; height: 14px;
+  color: var(--text-faint);
+  transition: transform .16s ease;
+}
+.facet.is-open .facet__chev { transform: rotate(180deg); }
+
+.facet__menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
+  min-width: 232px;
+  max-height: min(58vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  animation: facetin .14s ease both;
+}
+.facet__menu[hidden] { display: none; }
+@keyframes facetin {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.facet__head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 8px 7px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 4px;
+}
+.facet__head .linkbtn { margin-left: auto; text-transform: none; letter-spacing: 0; }
+
+.fopt {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%;
+  padding: 7px 8px;
+  appearance: none; background: none; border: 0;
+  border-radius: 7px;
+  font-size: 13px; font-weight: 500;
+  color: var(--text-dim);
+  cursor: pointer;
+  text-align: left;
+}
+.fopt:hover { background: var(--surface-2); color: var(--text); }
+.fopt[aria-checked="true"] { color: var(--text); font-weight: 600; }
+
+.fopt__box {
+  width: 15px; height: 15px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+  flex: 0 0 auto;
+  position: relative;
+}
+.fopt__box::after {
+  content: "";
+  position: absolute; left: 4px; top: 1px;
+  width: 4px; height: 8px;
+  border: solid var(--on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(42deg) scale(.6);
+  opacity: 0;
+  transition: opacity .1s ease, transform .1s ease;
+}
+.fopt[aria-checked="true"] .fopt__box {
+  background: var(--accent); border-color: var(--accent);
+}
+.fopt[aria-checked="true"] .fopt__box::after { opacity: 1; transform: rotate(42deg) scale(1); }
+
+.fopt__label {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-width: 0; flex: 1;
+}
+.fopt__n {
+  font-size: 11.5px; font-weight: 700;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .facets { width: 100%; }
+  .facet { flex: 1 1 auto; }
+  .facet__btn { width: 100%; }
+  .facet__menu { left: 0; right: 0; min-width: 0; }
+}

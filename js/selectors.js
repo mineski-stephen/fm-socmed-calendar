@@ -5,8 +5,10 @@
    ========================================================================== */
 
 import { state, FILTER_FIELDS, monthKeyOfState } from './state.js';
-import { PLATFORM_ORDER, TYPE_ORDER, STATUS_ORDER, STATUS_SETTLED } from './config.js';
-import { monthDayKeys, todayKey } from './dates.js';
+import {
+  PLATFORM_ORDER, TYPE_ORDER, STATUS_ORDER, STATUS_SETTLED, UPCOMING_WINDOW_DAYS,
+} from './config.js';
+import { monthDayKeys, todayKey, shiftKey } from './dates.js';
 import { groupBy, orderedEntries } from './utils.js';
 
 function cacheKey() {
@@ -36,6 +38,30 @@ export const isOverdue = (p) => p.statusKey !== 'posted' && p.dateKey < todayKey
 /** Every overdue posting in the tracker, oldest first. Ignores the filters. */
 export function getOverdue() {
   return state.posts.filter(isOverdue).sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+}
+
+/**
+ * A posting due today or in the next couple of days that has not gone out yet.
+ *
+ * Deliberately keyed on the DATE rather than on the exact timestamp. Every row
+ * in this tracker carries 12:00 AM, so a timestamp window would count today's
+ * posts as already in the past by one minute after midnight and never warn
+ * anybody about them. The day is the unit the team plans in, so the day is the
+ * unit the warning uses.
+ *
+ * Anything already past its date is the other notification's problem, so the
+ * two never describe the same posting.
+ */
+export function isUpcoming(p) {
+  if (p.statusKey === 'posted') return false;
+  const today = todayKey();
+  return p.dateKey >= today && p.dateKey <= shiftKey(today, UPCOMING_WINDOW_DAYS);
+}
+
+/** Every posting coming up inside that window, soonest first. Ignores filters. */
+export function getUpcoming() {
+  return state.posts.filter(isUpcoming).sort((a, b) =>
+    a.dateKey.localeCompare(b.dateKey) || a.minuteOfDay - b.minuteOfDay);
 }
 
 const passes = (p) => {
@@ -188,7 +214,18 @@ export function getStats() {
 
   const mk = monthKeyOfState();
   const monthKeys = state.month ? monthDayKeys(state.month.y, state.month.mo) : [];
-  const perDay = monthKeys.map((k) => ({ key: k, n: byDate.get(k) || 0 }));
+  // Split each day into shipped and not, so the timeline shows progress rather
+  // than just volume.
+  const postedByDate = new Map();
+  for (const p of shown) {
+    if (p.statusKey !== 'posted') continue;
+    postedByDate.set(p.dateKey, (postedByDate.get(p.dateKey) || 0) + 1);
+  }
+  const perDay = monthKeys.map((k) => {
+    const n = byDate.get(k) || 0;
+    const done = postedByDate.get(k) || 0;
+    return { key: k, n, posted: done, other: n - done };
+  });
 
   const stats = {
     total: all.length,

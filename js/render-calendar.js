@@ -58,6 +58,7 @@ function buildSkeleton(y, mo) {
           <span class="cell__total" data-total></span>
         </div>
         <div class="cell__chips" data-chips></div>
+        <span class="cell__more" data-more hidden></span>
       </div>`;
   }).join('');
 
@@ -108,20 +109,58 @@ export function renderCalendar(container) {
       `<div data-emptynote>${emptyViewHTML('posts')}</div>`);
   }
 
-  // Cheap part: only the chips change when a filter changes.
+  // Cheap part: only the chips change when a filter changes. Written in one
+  // pass, then measured in a second, so the browser lays out once rather than
+  // once per cell.
   for (const [key, el] of built.cells) {
     const posts = byDay.get(key) || [];
-    el.querySelector('[data-chips]').innerHTML = el.classList.contains('cell--out')
-      ? '' : chipsHTML(posts);
+    const out = el.classList.contains('cell--out');
+
+    el.querySelector('[data-chips]').innerHTML = out ? '' : chipsHTML(posts);
     const total = el.querySelector('[data-total]');
-    total.textContent = posts.length && !el.classList.contains('cell--out') ? posts.length : '';
+    total.textContent = posts.length && !out ? posts.length : '';
 
     // A day in the past still carrying unposted work gets flagged on the grid
     // itself, so the backlog is visible without opening anything.
-    const late = el.classList.contains('cell--out') ? 0 : posts.filter(isOverdue).length;
+    const late = out ? 0 : posts.filter(isOverdue).length;
     el.classList.toggle('cell--overdue', late > 0);
     el.title = late ? `${late} post${late === 1 ? '' : 's'} past due` : '';
     el.classList.toggle('cell--selected', key === state.selectedDayKey);
+  }
+
+  markOverflow();
+}
+
+/**
+ * A heavy day used to stretch its cell, and every other cell in that week with
+ * it - one busy Wednesday could add 150px to the whole month. The chip area is
+ * capped instead, and whatever does not fit is summarised as "+N more", which
+ * keeps the grid scannable. Nothing is lost: the cell still opens the full day.
+ */
+function markOverflow() {
+  // Read every cell first, then write, so this costs one layout rather than 42.
+  //
+  // Measured with rects, not offsetTop: the cell is position:relative, so a
+  // chip's offsetTop is counted from the CELL - header included - not from the
+  // chip box, which made even a one-chip day look overflowing.
+  const overflow = [];
+  for (const [, el] of built.cells) {
+    const box = el.querySelector('[data-chips]');
+    if (!box) continue;
+    const limit = box.getBoundingClientRect().bottom;
+    let hidden = 0;
+    for (const chip of box.querySelectorAll('.chip')) {
+      if (chip.getBoundingClientRect().bottom > limit + 1) hidden += 1;
+    }
+    overflow.push([el, hidden]);
+  }
+
+  for (const [el, hidden] of overflow) {
+    const more = el.querySelector('[data-more]');
+    if (!more) continue;
+    more.hidden = hidden === 0;
+    more.textContent = hidden ? `+${hidden} more` : '';
+    el.classList.toggle('cell--clipped', hidden > 0);
   }
 }
 

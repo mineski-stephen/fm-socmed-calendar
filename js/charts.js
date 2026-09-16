@@ -93,41 +93,75 @@ export function legend(data) {
  * line: the values are small integer counts, and a column makes an empty day
  * read as a genuine gap rather than a dip.
  */
-export function dayColumns(series, { width = 900, height = 170, hue = 'var(--accent)' } = {}) {
+export function dayColumns(series, {
+  width = 900, height = 190,
+  postedHue = 'var(--st-posted)', pendingHue = 'var(--accent)',
+} = {}) {
   if (!series.length) return emptyChart(width, height);
 
   const max = Math.max(1, ...series.map((d) => d.n));
-  const padL = 30, padB = 26, padT = 12;
+  // padT leaves room for the count that sits above each bar; without it the
+  // tallest day's label would be clipped by the top of the viewBox.
+  const padL = 30, padB = 34, padT = 26;
   const plotW = width - padL - 8;
   const plotH = height - padB - padT;
   const step = plotW / series.length;
   const barW = Math.max(3, step * 0.66);
+  const base = padT + plotH;
 
-  // horizontal gridlines at 0 / mid / max
-  const ticks = [0, Math.ceil(max / 2), max].filter((v, i, a) => a.indexOf(v) === i);
+  // gridlines at 0 / mid / max
+  const ticks = [...new Set([0, Math.ceil(max / 2), max])];
   const grid = ticks.map((t) => {
-    const y = padT + plotH - (t / max) * plotH;
+    const y = base - (t / max) * plotH;
     return `<line class="grid" x1="${padL}" y1="${y}" x2="${width - 8}" y2="${y}"/>
-            <text x="0" y="${y + 3.5}" class="t-mut">${t}</text>`;
+            <text x="0" y="${y + 4}" class="t-mut">${t}</text>`;
   }).join('');
 
   const bars = series.map((d, i) => {
     const x = padL + i * step + (step - barW) / 2;
-    const h = d.n ? Math.max(2, (d.n / max) * plotH) : 0;
-    const y = padT + plotH - h;
     const day = +d.key.slice(8);
-    const label = i % 7 === 0 || i === series.length - 1
-      ? `<text x="${x + barW / 2}" y="${height - 5}" text-anchor="middle" class="t-mut">${day}</text>`
-      : '';
-    const bar = d.n
-      ? `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="2.5" fill="${hue}"/>`
-      : `<rect x="${x}" y="${padT + plotH - 2}" width="${barW}" height="2" rx="1"
-           fill="var(--surface-3)"/>`;
-    return `<g><title>${escapeHtml(`${d.key}: ${d.n} post${d.n === 1 ? '' : 's'}`)}</title>
-        ${bar}${label}</g>`;
+
+    // Every date is labelled, not every seventh: on a month-long axis the
+    // whole point is being able to name the day a spike belongs to.
+    const label = `<text x="${x + barW / 2}" y="${height - 12}" text-anchor="middle"
+        class="t-day">${day}</text>`;
+
+    if (!d.n) {
+      return `<g><title>${escapeHtml(`${d.key}: no posts`)}</title>
+        <rect x="${x}" y="${base - 2}" width="${barW}" height="2" rx="1"
+              fill="var(--surface-3)"/>${label}</g>`;
+    }
+
+    const hPosted = (d.posted / max) * plotH;
+    const hOther = (d.other / max) * plotH;
+    const top = base - hPosted - hOther;
+
+    // The total above the bar, and the shipped count inside the green foot
+    // whenever that segment is tall enough to hold it. Reading a stacked bar
+    // off a gridline is guesswork; the split is the whole point of the chart,
+    // so both numbers are stated rather than estimated.
+    const total = `<text x="${x + barW / 2}" y="${top - 6}" text-anchor="middle"
+        class="t-count">${d.n}</text>`;
+    const inside = (d.posted && hPosted >= 15)
+      ? `<text x="${x + barW / 2}" y="${base - hPosted / 2 + 4}" text-anchor="middle"
+          class="t-inbar">${d.posted}</text>` : '';
+
+    // pending sits on top of posted, so the green foot of each bar reads as
+    // "this much of that day actually shipped"
+    const postedRect = d.posted
+      ? `<rect x="${x}" y="${base - hPosted}" width="${barW}" height="${Math.max(2, hPosted)}"
+              fill="${postedHue}" rx="2"/>` : '';
+    const otherRect = d.other
+      ? `<rect x="${x}" y="${top}" width="${barW}"
+              height="${Math.max(2, hOther)}" fill="${pendingHue}" rx="2"/>` : '';
+
+    return `<g>
+      <title>${escapeHtml(`${d.key}: ${d.posted} posted, ${d.other} not posted`)}</title>
+      ${postedRect}${otherRect}${inside}${total}${label}
+    </g>`;
   }).join('');
 
-  return svgWrap(width, height, `${grid}${bars}`, 'Posts per day');
+  return svgWrap(width, height, `${grid}${bars}`, 'Posts per day, posted against outstanding');
 }
 
 function emptyChart(w = 300, h = 90) {

@@ -58,6 +58,21 @@ export function todayKey() {
   return `${n.getFullYear()}-${pad2(n.getMonth() + 1)}-${pad2(n.getDate())}`;
 }
 
+/**
+ * A date key n days on from another one.
+ *
+ * Built by handing the day-of-month arithmetic to the LOCAL Date constructor,
+ * which rolls month and year ends for us, then reading the parts back out.
+ * Adding 86400000ms to a timestamp would be wrong twice a year, on the days a
+ * daylight-saving change makes shorter or longer than 24 hours.
+ */
+export function shiftKey(key, n) {
+  const p = partsFromKey(key);
+  if (!p) return key;
+  const d = new Date(p.y, p.mo, p.d + n);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
 export const daysInMonth = (y, mo) => new Date(y, mo + 1, 0).getDate();
 
 /** Every dateKey in a month, in order. */

@@ -1,0 +1,175 @@
+/* ============================================================================
+   lightbox.css — the blacked-out overlay for examining a post, and for
+   stepping through a whole day. Same component either way.
+   ========================================================================== */
+
+.lb {
+  position: fixed; inset: 0; z-index: 300;
+  display: flex; flex-direction: column;
+  background: rgba(6, 7, 10, .84);
+  backdrop-filter: blur(6px) saturate(120%);
+  animation: lbin .18s ease both;
+}
+@keyframes lbin { from { opacity: 0; } to { opacity: 1; } }
+
+/* the page behind must not scroll while the overlay is up */
+:root.lb-open body { overflow: hidden; }
+
+.lb__bar {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px;
+  color: #fff;
+}
+.lb__title { font-size: 14.5px; font-weight: 700; }
+.lb__count {
+  font-size: 13px; font-weight: 600;
+  color: rgba(255, 255, 255, .62);
+  font-variant-numeric: tabular-nums;
+}
+/* Only shown for a carousel — a single post has nothing to move on to. */
+.lb__hint {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, .42);
+}
+.lb__hint[hidden] { display: none; }
+.lb__x {
+  margin-left: auto;
+  appearance: none; border: 0;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(255, 255, 255, .12);
+  color: #fff; font-size: 16px; line-height: 1;
+  cursor: pointer;
+}
+.lb__x:hover { background: rgba(255, 255, 255, .22); }
+
+/* The arrows are laid out as siblings of the post rather than pinned to the
+   screen edges, so they sit right against what they move. */
+.lb__stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex; align-items: stretch; justify-content: center;
+  gap: 14px;
+  padding: 0 18px 20px;
+}
+
+/* ---------------------------------------------------------------------------
+   The carousel.
+
+   Every post is laid out side by side in one track and the track slides, so
+   the next post is already drawn before it is asked for and moving reads as
+   one continuous strip rather than as a page swap. The viewport is the window
+   it slides behind.
+
+   Nothing here scrolls: js/lightbox.js scales each post down until it fits the
+   height it has. An overlay opened to examine a post that then makes you
+   scroll to see the bottom of it is not doing its job.
+   ------------------------------------------------------------------------- */
+
+.lb__viewport {
+  flex: 0 1 560px;
+  max-width: 560px;
+  min-width: 0;
+  overflow: hidden;
+  align-self: stretch;
+}
+
+.lb__track {
+  display: flex;
+  height: 100%;
+  transform: translateX(calc(var(--i, 0) * -100%));
+  transition: transform .34s cubic-bezier(.22, .61, .36, 1);
+}
+.lb__track.is-instant { transition: none; }
+
+.lb__slide {
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  display: flex; flex-direction: column; align-items: stretch;
+  /* In a carousel the post sits against the top of the stage rather than
+     floating in the middle: a tall one and a short one then start from the
+     same line, so stepping between them does not jump the header up and down
+     the screen. */
+  justify-content: flex-start;
+}
+
+/* A single post has nothing to stay in step with, so it is simply centred -
+   a short one pinned to the top with a void beneath it just looks unfinished. */
+.lb__stage--solo .lb__slide { justify-content: center; }
+
+/* Holds the SCALED height, so the caption sits directly under the post. A
+   transform on its own leaves the layout box at full size and would strand the
+   caption below the fold. */
+.lb__fitbox { overflow: visible; }
+.lb__fit { transform-origin: top center; }
+
+.lb__caption {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, .7);
+}
+
+/* The post is drawn at full size here, so it gets its own surface rather than
+   inheriting the strip's compact framing. */
+.lb__frame {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .55);
+}
+.lb__mock { padding: 14px; background: var(--surface-2); }
+.lb__mock--simple { padding: 0; background: none; }
+.lb__mock .pcard { border: 0; border-radius: 0; }
+
+/* The header is informational here, not a collapse toggle: there is nothing to
+   collapse INTO in an overlay whose only job is to show the post. */
+.lb__frame .pcard__top { cursor: default; pointer-events: none; }
+.lb__frame .pcard__chev,
+.lb__frame .pcard__zoom { display: none; }
+/* A spotlit post is never collapsed: the overlay was opened to look at it, and
+   the header that would normally toggle it is inert here anyway - so a post
+   collapsed back in the strip must not open as an empty frame. */
+.lb__frame .pcard.is-collapsed > .pcard__body { display: block; }
+.lb__frame .pcard__top { border-bottom-color: var(--border-soft); }
+
+.lb__nav {
+  flex: 0 0 auto;
+  align-self: center;
+  appearance: none; border: 0;
+  width: 46px; height: 46px; border-radius: 50%;
+  background: rgba(255, 255, 255, .13);
+  color: #fff; font-size: 23px; line-height: 1;
+  cursor: pointer;
+}
+.lb__nav:hover { background: rgba(255, 255, 255, .26); }
+.lb__nav[disabled] { opacity: .22; cursor: default; }
+.lb__nav[hidden] { display: none; }
+
+/* the expand control on a day strip */
+.strip__zoom {
+  appearance: none; background: none; border: 0; padding: 2px;
+  width: 24px; height: 24px; border-radius: 5px;
+  color: var(--text-faint); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 auto;
+}
+.strip__zoom svg { width: 15px; height: 15px; }
+.strip__zoom:hover { color: var(--accent); background: var(--surface-3); }
+
+@media (max-width: 720px) {
+  /* No room for arrows beside the post at this width, so they move to the
+     bottom corners and the viewport takes the whole screen. */
+  .lb__stage { padding: 0 14px 74px; gap: 0; }
+  .lb__viewport { flex: 1 1 auto; max-width: none; }
+  .lb__hint { display: none; }
+  .lb__nav {
+    position: fixed; bottom: 16px; z-index: 2;
+    background: rgba(255, 255, 255, .2);
+  }
+  .lb__nav--prev { left: 18px; }
+  .lb__nav--next { right: 18px; }
+}

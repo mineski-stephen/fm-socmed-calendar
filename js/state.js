@@ -33,10 +33,24 @@ export const state = {
   selectedDayKey: null,
 
   filtersOpen: false,         // narrow screens only; wide screens always show them
+  openFacet: null,            // which filter dropdown is currently open
   carousels: new Map(),       // postId -> slide index
   expanded: new Set(),        // postId -> caption un-clamped
   collapsed: new Set(),       // "postId::platform" -> body hidden, note kept
-  alertAckCount: -1,          // overdue count when the banner was last dismissed
+  /*
+   * Notification bookkeeping, one pair per notice.
+   *
+   * ackCount is the count the notice was dismissed at, so it comes straight
+   * back if the number goes UP. snoozeUntil is when a dismissal expires, so a
+   * notice that is still true reappears rather than being silenced for the
+   * rest of the session.
+   */
+  alertAckCount: -1,          // overdue count when the notice was last dismissed
+  alertSnoozeUntil: 0,
+  upcomingAckCount: -1,
+  upcomingSnoozeUntil: 0,
+
+  chromeHidden: false,        // app bar rolled up by scrolling down
 
   _cache: { key: '', filtered: null, byDay: null, stats: null },
 };

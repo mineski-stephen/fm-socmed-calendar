@@ -20,13 +20,14 @@ const DRAG_THRESHOLD = 6;   // px before a press becomes a drag
  * curve makes the strips glide into place instead. Returns a cancel function so
  * a new gesture can take over mid-flight.
  */
-function glideTo(el, target, { duration = 420, onStep } = {}) {
+function glideTo(el, target, { duration = 420, onStep, onDone } = {}) {
   const from = el.scrollLeft;
   const dist = target - from;
 
   if (!dist || prefersReducedMotion()) {
     el.scrollLeft = target;
     if (onStep) onStep();
+    if (onDone) onDone();
     return () => {};
   }
 
@@ -43,13 +44,19 @@ function glideTo(el, target, { duration = 420, onStep } = {}) {
     el.scrollLeft = from + dist * ease(t);
     if (onStep) onStep();
     if (t < 1) raf = requestAnimationFrame(step);
+    else if (onDone) onDone();
   };
   raf = requestAnimationFrame(step);
 
   // If frames never arrive - an occluded window starves rAF - the rail would
   // be left stranded part-way. Land it on the target instead of animating.
   const bail = setTimeout(() => {
-    if (!cancelled) { cancelled = true; el.scrollLeft = target; if (onStep) onStep(); }
+    if (!cancelled) {
+      cancelled = true;
+      el.scrollLeft = target;
+      if (onStep) onStep();
+      if (onDone) onDone();
+    }
   }, duration + 260);
 
   return () => { cancelled = true; cancelAnimationFrame(raf); clearTimeout(bail); };
@@ -140,7 +147,7 @@ export function attachDrag(el, { onStart, onMove, onEnd, ignore } = {}) {
 
 /* -------------------------------- day rail --------------------------------- */
 
-export function initDayRail(rail, { onDayChange } = {}) {
+export function initDayRail(rail, { onDayChange, onMoved } = {}) {
   if (!rail) return null;
 
   const strips = () => Array.from(rail.querySelectorAll('.strip'));
@@ -164,7 +171,14 @@ export function initDayRail(rail, { onDayChange } = {}) {
     // The scrollbar is driven from the glide itself rather than from the
     // rail's scroll event, so the thumb tracks movement we caused without
     // waiting for the event to come back round to us.
-    cancelGlide = glideTo(rail, clamp(left, 0, maxScroll()), { duration, onStep: syncBar });
+    cancelGlide = glideTo(rail, clamp(left, 0, maxScroll()), {
+      duration,
+      onStep: syncBar,
+      // Fired once the rail has actually arrived. Strip building hangs off this
+      // rather than off the scroll event, which a programmatic move may never
+      // produce - that used to leave the day you jumped to as a skeleton.
+      onDone: () => { if (onMoved) onMoved(); },
+    });
     syncBar();
   };
 
@@ -239,7 +253,7 @@ export function initDayRail(rail, { onDayChange } = {}) {
   attachDrag(rail, {
     ignore: 'a, button, .igcar',
     onStart: () => { lockUntil = 0; cancelGlide(); startScroll = rail.scrollLeft; },
-    onMove: (dx) => { rail.scrollLeft = startScroll - dx; syncBar(); },
+    onMove: (dx) => { rail.scrollLeft = startScroll - dx; syncBar(); if (onMoved) onMoved(); },
     onEnd: (v) => {
       // Carry the throw a little past where it was released, then glide the
       // rest of the way so a day ends up centred rather than half-shown.
@@ -357,6 +371,7 @@ export function initDayRail(rail, { onDayChange } = {}) {
       syncBar();
       // Keeps the highlighted strip and the date readout in step with the box.
       setActive(currentIndex());
+      if (onMoved) onMoved();
     });
 
     const endRulerDrag = (e) => {

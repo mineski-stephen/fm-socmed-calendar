@@ -1,77 +1,37 @@
 /* ============================================================================
-   fonts.css — Helvetica Neue, self-hosted from font/.
+   fonts.css — Inter, self-hosted from font/.
 
-   Only the weights the page actually uses are declared; loading all 49 files in
-   the folder would cost far more than it gives. `font-display: swap` means text
-   is readable immediately in the fallback and re-renders once the face lands,
-   so a slow font never leaves the page blank.
+   Two files cover the whole page. These are VARIABLE fonts: one upright file
+   carries every weight from 100 to 900 as a continuous axis, and one italic
+   file does the same, so there is no per-weight @font-face list and no weight
+   the page can ask for and not get.
 
-   The italic faces are the .ttf cuts because the folder has no oblique .otf at
-   these weights.
+   `font-weight: 100 900` is what tells the browser the file spans that range.
+   Without it the face is treated as a single static weight and every other
+   weight is faked, which is exactly the blurry synthetic bold this replaces.
+
+   Inter also has an optical-size axis (opsz). `font-optical-sizing: auto` in
+   base.css lets the browser drive it from the font size, which is what keeps
+   a 10px status pill and a 26px KPI number looking like the same typeface.
+
+   `font-display: swap` means text is readable immediately in the fallback and
+   re-renders once the face lands, so a slow font never leaves the page blank.
    ========================================================================== */
 
 @font-face {
-  font-family: "Helvetica Neue LT";
-  src: url("../font/HelveticaNeue-Light.otf") format("opentype");
-  font-weight: 300;
+  font-family: "Inter Variable";
+  src: url("../font/Inter-VariableFont_opsz,wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-stretch: 100%;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: "Helvetica Neue LT";
-  src: url("../font/HelveticaNeue-Roman.otf") format("opentype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Helvetica Neue LT";
-  src: url("../font/HelveticaNeueItalic.ttf") format("truetype");
-  font-weight: 400;
+  font-family: "Inter Variable";
+  src: url("../font/Inter-Italic-VariableFont_opsz,wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-stretch: 100%;
   font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Helvetica Neue LT";
-  src: url("../font/HelveticaNeue-Medium.otf") format("opentype");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* The folder has no 600 cut, so semibold maps to the same Medium face and the
-   browser synthesises the extra weight rather than falling back to Arial. */
-@font-face {
-  font-family: "Helvetica Neue LT";
-  src: url("../font/HelveticaNeue-Medium.otf") format("opentype");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Helvetica Neue LT";
-  src: url("../font/HelveticaNeueBold.ttf") format("truetype");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Helvetica Neue LT";
-  src: url("../font/HelveticaNeueBoldItalic.ttf") format("truetype");
-  font-weight: 700;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Helvetica Neue LT";
-  src: url("../font/HelveticaNeue-Black.otf") format("opentype");
-  font-weight: 800 900;
-  font-style: normal;
   font-display: swap;
 }

@@ -206,10 +206,20 @@ no longer needs anyone to do anything.
 |---|---|
 | **Refresh** | Re-reads the sheet without reloading the page. Shortcut: `R`. A red dot on the button shows while a read is in flight |
 | **Auto** | Ticked by default; re-reads the sheet every minute. Untick to hold the data still. The choice is remembered |
+| **Sheet** | Opens the tracker in a new tab. This page is read-only, so this is the way back to where the data is actually edited |
 | **Simple / Layout** | Switches how posts are drawn (see below) |
 | **Theme** | Light, match-system, or dark |
 
 The line under the title shows the post count and how long ago the data was fetched.
+
+The sheet address lives in `SHEET_URL` in `js/config.js`, next to the `CSV_URL` it publishes
+from - so pointing the page at a different tracker means editing one file.
+
+**The bar rolls up when you scroll down and comes back when you scroll up.** On the calendar
+and stats tabs that is the page's own scroll; in the day view, where the page itself does not
+scroll, it is the scroll inside a day column. Either way the day strips are re-measured and
+grow into the space the bar gave back, so reading a long day gets the height and the controls
+are never more than a flick away.
 
 ### Keeping up to date
 
@@ -236,14 +246,49 @@ month, the selected day and the rail's scroll position. If a refresh fails, the 
 stays put; a manual one says so, an automatic one stays quiet, because the next attempt is a
 minute away.
 
-### Past due
+### Notifications
+
+Two notices share the bottom-right corner, stacked with past due above coming up, because a
+missed deadline outranks an approaching one. Both stay put while open and bounce every few
+seconds to keep catching the eye; hovering stops the movement so neither is moving as you
+reach for it. Passing toasts queue above them rather than landing on top.
+
+**Dismissing either is "not now", not "never".** A notice comes back when:
+
+- its count goes **up** - acknowledging today's backlog does not also silence tomorrow's;
+- a refresh brings **changed** data, because whatever was dismissed was dismissed about a
+  different set of postings; or
+- **ten minutes** go by. Work that is still past due ten minutes later is still past due, and
+  a box that stayed shut for the rest of the session would quietly turn a real backlog into
+  nobody's problem. The window is `ALERT_SNOOZE_MS` in `js/config.js`.
+
+A refresh that finds the sheet **unchanged** deliberately does not re-raise anything. Nothing
+about the situation changed, and with a poll every minute a notice that returned each time
+would just train people to close it without reading it.
+
+#### Coming up
+
+A posting due **today, tomorrow or the day after** that is not yet marked `Posted` is
+*coming up*. The notice names how many there are, which brands, and when the soonest one is
+due; **Review them** clears the other filters and opens the day the soonest one sits on.
+
+The window is keyed on the **date**, not on the exact timestamp. Every row in this tracker
+carries `12:00:00 AM`, so a timestamp window would count today's posts as already in the past
+one minute after midnight and never warn anybody about them. The day is the unit the team
+plans in, so the day is the unit the warning uses. Change `UPCOMING_WINDOW_DAYS` in
+`js/config.js` to look further ahead.
+
+Anything already past its date belongs to the past-due notice instead, so the two never
+describe the same posting.
+
+#### Past due
 
 A posting whose date has gone by while it is still not marked `Posted` is **past due**, and
 the page goes out of its way to make that hard to miss:
 
 | Where | What you see |
 |---|---|
-| A banner under the tabs | `5 posts past due`, the brands involved, how old the oldest is, and a **Review them** button |
+| A notification, bottom right | `5 posts past due`, the brands involved, how old the oldest is, and a **Review them** button |
 | The filter bar | A red **Past due** lens; click it to narrow to just those |
 | Calendar | The day is tinted red with a red edge, and its count gains a `!` |
 | Day view | The strip is outlined red and its header reads `1 past due` |
@@ -255,11 +300,6 @@ the page goes out of its way to make that hard to miss:
 day view and opens the month containing the *oldest* one, so the button lands somewhere
 useful rather than filtering whatever month happened to be on screen.
 
-**Dismissing the banner is per session and per count.** It stays down until the number goes
-*up* - acknowledging today's backlog does not also silence tomorrow's. With the sheet being
-re-read every minute, a banner that popped back up each time would just train people to
-ignore it.
-
 Two decisions worth knowing:
 
 - **Today is never past due.** The day is not over yet; the cutoff is strictly *before* today.
@@ -269,10 +309,17 @@ Two decisions worth knowing:
 
 ### Filters
 
-Four groups — Brand, Platform, Status, Type — built from the values actually present in the
-data, each showing its own count. They are multi-select; no selection in a group means "all".
-Filters apply to **all three views at once**, including the Stats numbers. On narrow screens
-they collapse behind a **Filters** button with a badge showing how many are active.
+Four dropdowns - Brand, Platform, Status, Type - built from the values actually present in the
+data, each showing its own counts. They are multi-select, and the menu stays open while you
+pick so choosing three platforms does not mean opening it three times. The button reports what
+is selected, so the bar still reads at a glance when everything is closed.
+
+They were a wall of chips before. With four facets and a dozen values each that pushed the
+calendar most of a screen down; as dropdowns the whole bar is one row.
+
+Filters apply to **all three views at once**, including the Stats numbers. Click outside or
+press `Escape` to close a menu. On narrow screens the whole bar collapses behind a **Filters**
+button with a badge showing how many are active.
 
 ### Simple view vs Layout view
 
@@ -307,6 +354,14 @@ Facebook posts that day for that brand. Clicking a day switches to the Day view 
 On narrow screens the brand names are dropped and only the coloured bars remain; the legend
 under the grid maps colours to brands.
 
+**Busy days do not stretch the month.** The chip area of a cell is capped, and anything that
+does not fit is summarised as **+N more**. Left uncapped, one heavy day stretches its cell
+*and every other cell in that week* - a day with three brands across six platforms took the
+grid from 822px to 979px on its own, and a month with a few of those stops being scannable.
+Nothing is hidden for good: the count in the corner is always the true total, and clicking
+the day opens all of it. The cap is a CSS variable (`--cell-chips-max`) if you want a
+different balance, and it is already lower on phones, where a cell is only about 55px wide.
+
 ### Day view
 
 A horizontal rail with **one column per day of the month, including empty days** — so a gap in
@@ -329,6 +384,26 @@ the days either side of whatever you are looking at. The rail carries half a scr
 at each end, which is what lets the 1st and the 30th reach the middle too rather than clamping
 against the edges.
 
+**Strip width is derived from the window, not fixed.** The day view takes the full window
+width, and the rail divides it into a whole number of columns, so every strip on screen is a
+*whole* strip. A fixed width leaves the leftover pixels as a sliced-off sliver at each edge -
+the centred day fits, and its neighbours get cut by however many pixels do not divide evenly.
+
+The count is forced **odd**, because the active day is centred: with an even count, centring
+one column necessarily splits the two at the ends in half, which is the very thing this
+avoids. On a 1600px window that works out to three columns of about 520px each, and the two
+either side of the middle end exactly at the rail's edges.
+
+Columns stay between 360px and 680px wide. The lower bound is where a mock stops being
+readable; the upper is where the posts just get airier rather than clearer. Below about
+1150px only one column fits, and it keeps a gutter either side.
+
+Resizing the window re-fits the columns and re-centres the selected day - every strip moved,
+so the offset that had it in the middle a moment ago would leave it half off the edge.
+
+Neighbouring strips are dimmed a little so the day you are on reads as the subject and the
+ones beside it as context.
+
 ### The day ruler
 
 A slot per day of the month, with a box that tracks whichever day the rail is centred on:
@@ -350,6 +425,24 @@ between days were fighting each other, so crossing the month is the ruler's job.
 horizontal trackpad gesture still scrolls the rail, because the rail is a real `overflow-x`
 scroller.
 
+### Reading one platform at a time
+
+The per-platform chips in a day's header are buttons. **Clicking one narrows that strip to
+that platform** - a day carrying a Facebook post, an Instagram crosspost and two TikToks can
+be read one channel at a time. Click the same chip again, or the **show all** link, to clear
+it.
+
+It filters the *placements*, not the rows, so a crosspost shows just the one placement you are
+looking at rather than disappearing or dragging its other platform along with it.
+
+The selection is deliberately **local and temporary**: it belongs to the day you are reading,
+and it clears the moment the rail settles on a different day. Carrying it along would quietly
+hide posts on days nobody ever filtered. Use the filter bar for anything that should apply
+across the month.
+
+A day with only one platform on it leaves its chip as a plain label - there is nothing to
+narrow to.
+
 ### Collapsing a post
 
 **Clicking a post's header collapses it** - the mock or card body folds away and the chevron
@@ -359,6 +452,54 @@ to read. Click again to reopen. Collapsed posts stay collapsed across filtering 
 
 The note deliberately sits outside the collapsible body; collapsing hides the creative, not
 the instruction attached to it.
+
+### Examining a post up close
+
+Both of these black out the page and show the post at full size, whatever the Simple/Layout
+toggle is set to - a mock is the point when you are inspecting one.
+
+- The **expand button on a post header** opens that post on its own.
+- The **expand button on a day's header** opens every post for that day as a carousel, so you
+  can step through the day's output without closing and reopening.
+
+**The whole post always fits the window.** Nothing scrolls in this view: if a post is taller
+than the space it has, the entire thing is scaled down until it fits. An overlay opened to
+examine a post that then makes you scroll to see the bottom of it is not doing its job.
+
+The scale is measured per post, not guessed once. A Facebook static post, a 9:16 reel and a
+simple card for a platform with no mock are wildly different heights, and one hardcoded factor
+would either crop the tall ones or shrink the short ones for nothing. Anything that already
+fits is left alone rather than being blown up into a blurry poster.
+
+**The posts sit side by side in one track and the track slides.** They are all built when the
+overlay opens, so the next post is already drawn before you ask for it, and moving reads as
+one continuous strip rather than as a page swap.
+
+| Input | Result |
+|---|---|
+| **Scrolling** | One post. There is nothing to scroll inside a post, so the wheel has one job here |
+| The **arrows either side of the post** | One post. They sit against the post rather than out at the screen edges, where a control that far from the subject reads as decoration |
+| Left / Right arrow | One post |
+| `Escape`, or clicking the backdrop | Close |
+
+Moving on has to be **earned** - 120px of wheel travel, then a short cooldown. Acting on the
+first event would turn one trackpad flick into five posts, because momentum keeps delivering
+events long after the fingers have left.
+
+In a carousel the posts are **top-aligned**, so stepping between a tall one and a short one
+does not jump the header up and down the screen. A single post has nothing to stay in step
+with, so it is simply centred.
+
+The carousel is built from the *filtered* day, so it shows what the strip behind it shows
+rather than quietly reintroducing posts you filtered out. Focus returns to whatever opened it,
+and only the post on screen is reachable by Tab or a screen reader.
+
+A post's own controls work here too: **See more** on a long caption expands it in place, and
+clicking the caption copies it.
+
+The header is informational in this view rather than a collapse toggle - there is nothing to
+collapse into an overlay whose only job is to show the post - and a post that is collapsed
+back in the strip still opens in full here.
 
 Day columns are built as you approach them rather than all at once, so switching to Layout
 mode over thirty days stays instant.
@@ -385,8 +526,11 @@ Every number respects the active filters.
 - **Posts per brand** and **Platform mix** — where the volume is going.
 - **Status breakdown** — how much of the plan is actually shipped.
 - **Type of post** — the format mix.
-- **Posts per day** — the month as a column chart, which is what makes clustering and quiet
-  stretches obvious.
+- **Posts per day** - the month as a stacked column chart: the green foot of each bar is what
+  actually shipped that day, the rest is what did not. Every date is labelled, so a spike can
+  be named rather than counted along the axis. Each bar carries its **total above it** and its
+  **shipped count inside the green**, because reading a stacked bar off a gridline is
+  guesswork and the split is the whole point of the chart.
 - **Brand x platform** — a heat grid; an empty cell is a channel a brand is not covering.
 - **Content readiness** — the share of rows that have a caption, an asset link and a live post
   link. This is the panel that tells the team what is still outstanding.
@@ -459,7 +603,7 @@ No build step, no framework, no CDN, no npm. `index.html` links the stylesheets 
 ```
 index.html              markup shell only; everything else is rendered
 css/
-  fonts.css             the Helvetica Neue faces, loaded from font/
+  fonts.css             the two Inter variable faces, loaded from font/
   tokens.css            every colour, light and dark
   base.css              reset, typography, the .glyph icon primitive
   shell.css             app bar, tabs, filter bar
@@ -471,6 +615,7 @@ css/
   mock-facebook.css     |
   mock-instagram.css    |  one stylesheet per mock, paired 1:1 with its module
   mock-x.css            |
+  lightbox.css          the overlay
   stats.css             KPI cards and charts
   states.css            loading, error and empty states
 js/
@@ -482,7 +627,7 @@ js/
   state.js              the store, localStorage, deep links
   selectors.js          filtering, grouping and the stats, memoised
   theme.js              light / dark / system
-  render-shell.js       filter bar, status panels, toasts
+  render-shell.js       filter bar, the two notifications, status panels, toasts
   render-calendar.js    the month grid
   render-dayview.js     the rail and day columns
   render-post.js        captions, media, notes, the simple card
@@ -490,10 +635,11 @@ js/
   mock-instagram.js     |  one module per mock
   mock-x.js             |
   charts.js             the SVG chart helpers
+  lightbox.js           the blacked-out overlay: spotlight and day carousel
   render-stats.js       the dashboard
   interactions.js       drag, the rail, the carousel
   main.js               boot and the render dispatcher
-font/                   Helvetica Neue, self-hosted
+font/                   Inter, self-hosted (two variable .ttf files)
 img/                    logos, profile pictures, icons (incl. clip_black.png,
                         the Files paperclip)
 mock_layouts/           reference screenshots (not used by the site)
@@ -501,11 +647,29 @@ mock_layouts/           reference screenshots (not used by the site)
 
 ### Typography
 
-The page is set in **Helvetica Neue**, self-hosted from `font/`. Only the weights actually
-used are declared in `css/fonts.css` - loading all 49 files in that folder would cost far more
-than it gives - and `font-display: swap` means text stays readable in the fallback stack while
-the faces load. To add a weight, add one `@font-face` block pointing at the file; everything
-inherits `var(--font)` from `body`.
+The page is set in **Inter**, self-hosted from `font/`. Two files cover all of it:
+
+```
+font/Inter-VariableFont_opsz,wght.ttf          upright, every weight
+font/Inter-Italic-VariableFont_opsz,wght.ttf   italic, every weight
+```
+
+These are **variable** fonts. One file carries the whole 100-900 weight range as a continuous
+axis, which is why `css/fonts.css` has two `@font-face` blocks rather than one per weight, and
+why there is no weight the page can ask for and not get. The `font-weight: 100 900` descriptor
+is what tells the browser the file spans that range - without it the face is treated as a
+single static weight and everything else is faked.
+
+Inter also carries an optical-size axis, and `font-optical-sizing: auto` lets the browser drive
+it from the font size. That is what keeps a 10px status pill and a 26px KPI number reading as
+the same typeface rather than as one scaled up.
+
+`font-display: swap` means text stays readable in the fallback stack while the faces load, and
+the upright file is preloaded from `index.html`. The italic is not: almost nothing on the page
+is italic, and fetching it up front would compete with the sheet.
+
+Everything inherits `var(--font)` from `body`, so changing the typeface is one line in
+`css/base.css` plus the `@font-face` blocks.
 
 Imports run strictly one way, so there are no circular dependencies:
 
@@ -552,6 +716,19 @@ first:
 - **The ruler is driven from the glide, not from the rail's `scroll` event.** When the page
   moves the rail itself, waiting for the scroll event to come back round leaves the box
   lagging behind the pointer.
+- **Calendar overflow is measured with rects, not `offsetTop`.** The cell is
+  `position: relative`, so a chip's `offsetTop` is counted from the cell - header included -
+  rather than from the chip box, which made even a one-chip day report as overflowing.
+- **The post header is a grid, not a wrapping flex row.** With `flex-wrap` every chip found
+  its own line independently and a loaded header sprawled over three or four ragged rows.
+  As a grid the platform stays pinned left, the time and chevron stay pinned right, and only
+  the tags wrap - as one block, in their own column.
+- **Strips are built whenever the rail lands on a day, not only on its `scroll` event.** A
+  deep link, a ruler click or the keyboard can move the rail without a scroll event ever being
+  delivered, which left the day you asked for sitting there as a skeleton.
+- **The thumbnail height is handed down through `.mediawrap`.** `clickableMediaHTML` wraps the
+  placeholder, so a `height: 100%` on the placeholder alone resolves against an auto-height
+  parent and collapses to zero.
 
 ---
 
@@ -606,13 +783,22 @@ one platform shows only that copy.
 `localhost` both qualify; a plain `http://` internal host does not, and the page falls back to
 an older copy method that some browsers also block. Hosting over HTTPS fixes it.
 
-**The text is not Helvetica** - the font files under `font/` did not upload, or the folder was
-renamed. The page falls back to the system Helvetica/Arial stack and stays perfectly readable;
-check the browser console for 404s under `font/`.
+**The text is not Inter** - the two variable `.ttf` files under `font/` did not upload, or the
+folder was renamed. The page falls back to the system UI font and stays perfectly readable;
+check the browser console for 404s under `font/`. Note the filenames contain a comma
+(`Inter-VariableFont_opsz,wght.ttf`); some upload tools and sync clients rename it, and the
+name has to match `css/fonts.css` exactly.
+
+**Bold text looks blurry or too heavy** - the variable font did not load and the browser is
+synthesising bold from the fallback. Same check as above.
 
 **The mouse wheel will not move across days** - that is deliberate. Use the day ruler above
 the strips, drag a strip sideways, or press the arrow keys. The wheel scrolls the posts within
 a day.
+
+**A day is showing fewer posts than its count says** - one of the platform chips in that day's
+header is pressed, which narrows the strip to that platform. Click it again, or the **show
+all** link beside the chips. Moving to another day clears it automatically.
 
 **A post looks empty** - its header was clicked, which collapses it. Click the header again;
 the chevron points right when a post is collapsed.
@@ -620,10 +806,14 @@ the chevron points right when a post is collapsed.
 **The data stopped updating** - check the **Auto** box beside Refresh. Unticked, the page holds
 whatever it last loaded until you press Refresh.
 
+**A post opens a link when I wanted to look at it** - the media and the page name are
+click-throughs to the real post. Use the expand button in the post's header to examine it
+instead.
+
 **A post is flagged past due but it did go out** - its Status in the sheet is not `Posted`.
 The flag is driven entirely by that column, so updating the sheet clears it on the next
 refresh.
 
-**The past-due banner keeps coming back** - it reappears only when the count goes *up*, which
+**The past-due notification keeps coming back** - it reappears only when the count goes *up*, which
 means another posting has just fallen overdue. Dismissing it again acknowledges the new
 number.

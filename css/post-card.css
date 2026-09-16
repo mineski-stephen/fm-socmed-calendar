@@ -10,12 +10,27 @@
   overflow: hidden;
 }
 /* The same header sits above every post - simple card and platform mock alike
-   - so the platform is always named. */
+   - so the platform is always named.
+
+   A grid rather than a wrapping flex row. With plain flex-wrap every chip found
+   its own line independently, so "Instagram / crosspost / Posted / Reels / time"
+   sprawled over three or four ragged rows. Here the platform stays pinned left,
+   the time and chevron stay pinned right, and only the tags in the middle wrap
+   - as one block, against their own column. */
 .pcard__top {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 4px 8px;
   padding: 9px 11px;
   border-bottom: 1px solid var(--border-soft);
   background: var(--surface-2);
+}
+
+.pcard__tags {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
 }
 .pcard__logo { width: 20px; height: 20px; border-radius: 50%; flex: 0 0 auto; }
 .pcard__ph {
@@ -33,6 +48,12 @@
   white-space: nowrap;
 }
 
+/* When the tags need a second line, the header stops being vertically centred
+   and aligns to the top so the platform name still lines up with the first row
+   of tags rather than floating in the middle. */
+.pcard__top:has(.pcard__tags) { align-items: start; }
+.pcard__top > :not(.pcard__tags) { align-self: center; }
+
 /* Marks one half of a crosspost, so it is clear the same row is also drawn
    under another platform rather than being duplicated by mistake. */
 .crossmark {
@@ -49,6 +70,19 @@
 .pcard__top { cursor: pointer; }
 .pcard__top:hover { background: var(--surface-3); }
 .pcard__top:focus-visible { box-shadow: var(--ring); }
+
+/* Opens the post in the spotlight overlay. Kept out of the header's collapse
+   target by being a real button - closest('[data-act]') finds it first. */
+.pcard__zoom {
+  appearance: none; background: none; border: 0; padding: 2px;
+  width: 22px; height: 22px;
+  color: var(--text-faint);
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 5px;
+}
+.pcard__zoom svg { width: 15px; height: 15px; }
+.pcard__zoom:hover { color: var(--accent); background: var(--surface-3); }
 
 .pcard__chev {
   width: 16px; height: 16px;
@@ -95,11 +129,26 @@
 .glyph--clip { width: 13px; height: 13px; opacity: .8; }
 .pcard__links { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
+/* The thumbnail is a fixed band, and the placeholder fills it rather than
+   keeping its own aspect ratio. Without this a 9:16 reel laid out at its full
+   height and was then clipped by max-height, which left the play badge - which
+   centres itself in the FULL box - sitting low and off-centre in what you
+   could actually see. */
 .pcard__thumb {
   border-radius: var(--radius-sm);
   overflow: hidden;
-  max-height: 150px;
+  height: 152px;
 }
+/* clickableMediaHTML wraps the placeholder in .mediawrap, so the height has to
+   be handed down the whole chain or it resolves against an auto-height parent
+   and collapses to nothing. */
+.pcard__thumb > .mediawrap,
+.pcard__thumb .ph,
+.pcard__thumb .phgrid,
+.pcard__thumb .ph-ugc { aspect-ratio: auto; height: 100%; }
+.pcard__thumb .ph-ugc { display: flex; flex-direction: column; }
+.pcard__thumb .ph-ugc .ph { flex: 1; min-height: 0; }
+.pcard__thumb .ph__play { width: 46px; height: 46px; }
 
 /* the "simple view" listing inside a strip when Simple mode is on */
 .pcard--compact .pcard__thumb { display: none; }

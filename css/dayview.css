@@ -7,7 +7,19 @@
    animated in JS rather than left to CSS scroll-snap, which lands abruptly.
    ========================================================================== */
 
-/* the rail wants the full window width, so the day view opts out of the gutter */
+/* ---------------------------------------------------------------------------
+   The rail wants every pixel the window has.
+
+   Two things give it that width. The view escapes .main's padding with a
+   negative margin, and shell.css drops .main's max-width entirely while the
+   day tab is open - which is cheaper and safer than a 100vw full-bleed, since
+   100vw counts the vertical scrollbar and would hand the page a horizontal one.
+
+   sizeRail() then divides that width into an ODD number of columns, so the day
+   in the middle is genuinely centred and the two beside it end exactly at the
+   rail's edges instead of being sliced off by however many pixels were left
+   over.
+   ------------------------------------------------------------------------- */
 .dayview { margin: 0 calc(-1 * var(--gutter, 20px)); }
 
 .dayview__head {
@@ -134,8 +146,16 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+
+  /* The day you are on is the subject; its neighbours are context. */
+  opacity: .58;
+  transition: opacity .25s ease;
 }
+.rail.is-dragging .strip { transition: none; }
+.strip--active { opacity: 1; }
 .strip--today { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+/* a strip narrowed to one platform says so at a glance, from the outside */
+.strip--lensed { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
 .strip--active { box-shadow: var(--shadow-md); }
 .strip--empty { background: var(--bg-elev); }
 
@@ -166,7 +186,41 @@
   font-size: 11px; font-weight: 600; color: var(--text-faint);
   font-variant-numeric: tabular-nums;
 }
+/* ---------------------------------------------------------------------------
+   The per-platform chips in a strip header double as a filter for that strip
+   alone: a day carrying a Facebook post, an Instagram crosspost and two TikToks
+   can be read one channel at a time without touching the global filter bar and
+   emptying every other day in the month.
+
+   The selection is deliberately local and temporary - it clears as soon as the
+   rail moves on - so nobody is left wondering later why one day looks short.
+   ------------------------------------------------------------------------- */
 .strip__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+
+button.chip {
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+}
+button.chip:hover { border-color: var(--accent); color: var(--text); }
+button.chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+button.chip[aria-pressed="true"] .chip__logo { filter: none; }
+
+/* Says what the local filter is doing and offers the way out of it. */
+.strip__only {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10.5px; font-weight: 600;
+  color: var(--accent);
+}
+.strip__only button {
+  appearance: none; background: none; border: 0; padding: 0;
+  color: inherit; font: inherit; text-decoration: underline;
+  cursor: pointer;
+}
 
 .strip__body {
   flex: 1 1 auto;

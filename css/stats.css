@@ -73,6 +73,16 @@
 .chart text { font-size: 13px; fill: var(--text-dim); }
 .chart .t-val { fill: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
 .chart .t-mut { fill: var(--text-faint); font-size: 12px; }
+/* Every date on the per-day axis is labelled, so they run small and tight. */
+.chart .t-day { fill: var(--text-faint); font-size: 10.5px;
+  font-variant-numeric: tabular-nums; }
+/* Totals above each column, and the shipped count inside the green foot. With
+   thirty columns on one axis these have to be smaller than the chart's default
+   text or they collide with their neighbours. */
+.chart .t-count { fill: var(--text); font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums; }
+.chart .t-inbar { fill: #06240f; font-size: 10px; font-weight: 700;
+  font-variant-numeric: tabular-nums; }
 .chart .grid  { stroke: var(--border-soft); stroke-width: 1; }
 .chart .track { fill: var(--surface-2); }
 

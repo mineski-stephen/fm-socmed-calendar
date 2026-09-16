@@ -6,12 +6,13 @@
 
 html { -webkit-text-size-adjust: 100%; }
 
-/* One stack, used everywhere. The self-hosted faces come first; the system
-   Helvetica Neue and Arial cover the gap while the files load, and the emoji
-   families are kept at the end because the captions are full of emoji that the
-   Helvetica cuts do not contain. */
+/* One stack, used everywhere. The self-hosted variable face comes first; a
+   locally installed Inter, then the system UI font, cover the gap while the
+   file loads. The emoji families are kept at the end because the captions are
+   full of emoji that Inter does not contain. */
 :root {
-  --font: "Helvetica Neue LT", "Helvetica Neue", Helvetica, Arial, sans-serif,
+  --font: "Inter Variable", Inter, system-ui, -apple-system, "Segoe UI",
+          Roboto, Helvetica, Arial, sans-serif,
           "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
 }
 
@@ -21,6 +22,11 @@ body {
   color: var(--text);
   font: 400 14.5px/1.5 var(--font);
   overflow-x: hidden;
+
+  /* Inter carries an optical-size axis; letting the browser drive it from the
+     font size is what keeps a 10px status pill and a 26px KPI number reading
+     as the same typeface rather than as one scaled up. */
+  font-optical-sizing: auto;
 }
 
 /* Form controls do not inherit the page font by default. */

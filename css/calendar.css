@@ -70,7 +70,29 @@
   font-variant-numeric: tabular-nums;
 }
 
-.cell__chips { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+/* Capped on purpose. Left to grow, one heavy day stretches its whole week row
+   and the month stops being scannable; whatever does not fit is summarised by
+   .cell__more, and the day itself is one click away. */
+.cell__chips {
+  display: flex; flex-direction: column; gap: 7px;
+  min-width: 0;
+  max-height: var(--cell-chips-max, 112px);
+  overflow: hidden;
+}
+
+.cell__more {
+  margin-top: 3px;
+  font-size: 11px; font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.cell__more[hidden] { display: none; }
+
+/* a soft fade so a clipped chip row reads as continuing rather than cut off */
+.cell--clipped .cell__chips {
+  -webkit-mask-image: linear-gradient(to bottom, #000 78%, transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 78%, transparent 100%);
+}
 
 /* one group per brand */
 .bgroup {
@@ -121,13 +143,16 @@
 .cal__legend span { display: inline-flex; align-items: center; gap: 6px; }
 
 @media (max-width: 900px) {
-  .cell { min-height: 128px; padding: 7px; }
+  .cell { min-height: 128px; padding: 7px; --cell-chips-max: 84px; }
   .bgroup__name { font-size: 10px; }
   .chip { font-size: 12px; }
 }
 @media (max-width: 620px) {
   .cal__dow span { padding: 6px 4px; font-size: 9px; letter-spacing: .04em; }
-  .cell { min-height: 78px; padding: 4px 3px; gap: 4px; }
+  /* Cells are only ~55px wide here, so the cap is what keeps a phone showing a
+     month rather than a very long list. Two chip rows is the useful minimum;
+     anything past that is summarised and the day itself is one tap away. */
+  .cell { min-height: 96px; padding: 4px 3px; gap: 3px; --cell-chips-max: 74px; }
   .cell__total { display: none; }
   .bgroup { padding-left: 4px; border-left-width: 2px; }
   .bgroup__name { display: none; }

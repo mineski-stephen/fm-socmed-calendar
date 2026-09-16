@@ -3,11 +3,13 @@
    toasts. Everything outside the three views.
    ========================================================================== */
 
-import { CSV_URL, PLATFORM_ORDER, TYPE_ORDER, STATUS_ORDER } from './config.js';
+import {
+  CSV_URL, PLATFORM_ORDER, TYPE_ORDER, STATUS_ORDER, UPCOMING_WINDOW_DAYS,
+} from './config.js';
 import { escapeHtml, orderedEntries } from './utils.js';
 import { sinceLabel, todayKey } from './dates.js';
 import { state, hasActiveFilters, FILTER_FIELDS } from './state.js';
-import { getFiltered, getOverdue } from './selectors.js';
+import { getFiltered, getOverdue, getUpcoming } from './selectors.js';
 import { brandMeta, platformMeta, typeMeta, statusMeta } from './data.js';
 
 const $id = (id) => document.getElementById(id);
@@ -62,101 +64,211 @@ export function syncSyncLabel() {
   if (chk) chk.checked = state.autoRefresh;
 }
 
-/* ------------------------------ overdue alert ------------------------------ */
+/* ------------------------------ notifications ------------------------------ */
 
-/**
- * The attention-grabber for postings whose date has gone by while they were
- * still not marked Posted.
+/*
+ * Two notices share one component and one corner of the screen: work whose
+ * date has gone by without being posted, and work whose date is about to
+ * arrive. They stack bottom-right, past due on top, because a missed deadline
+ * outranks an approaching one.
  *
- * Dismissing it is per session and per count: it stays down until the number
- * goes UP, so acknowledging today's backlog does not also silence tomorrow's.
- * An auto-refresh every minute that kept re-raising a dismissed banner would
- * train people to ignore it.
+ * Dismissing either is "not now", not "never". Each comes back when its count
+ * rises, when a refresh brings changed data, or after ALERT_SNOOZE_MS - so
+ * closing the box cannot quietly make a real backlog disappear for the rest of
+ * the day.
  */
+
+const WARN_ICON = `
+  <svg class="notice__icon" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 3.6 1.8 20.4h20.4L12 3.6Z" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linejoin="round"/>
+    <path d="M12 9.6v4.6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="12" cy="17.4" r="1.25" fill="currentColor"/>
+  </svg>`;
+
+const CLOCK_ICON = `
+  <svg class="notice__icon" viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+    <path d="M12 6.8V12l3.4 2.1" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+
+/** Which brands a set of postings belongs to, as a phrase. */
+function whoFrom(list) {
+  const brands = Array.from(new Set(list.map((p) => brandMeta(p.brandKey).label)));
+  return brands.length === 1 ? brands[0] : `${brands.length} brands`;
+}
+
+const dayGap = (aKey, bKey) => Math.round(
+  (Date.parse(`${bKey}T00:00:00`) - Date.parse(`${aKey}T00:00:00`)) / 86400000);
+
+/** True when a notice is currently allowed to be on screen. */
+function noticeLive(n, ackCount, snoozeUntil) {
+  if (!n) return false;
+  if (n > ackCount) return true;          // it got worse since it was dismissed
+  return snoozeUntil > 0 && Date.now() >= snoozeUntil;
+}
+
+function noticeHTML({ kind, icon, title, detail, action, act, dismiss }) {
+  return `<div class="notice notice--${kind}">
+      ${icon}
+      <div class="notice__body">
+        <b>${title}</b>
+        <span>${detail}</span>
+        <button class="btn btn--primary" data-act="${act}">${escapeHtml(action)}</button>
+      </div>
+      <button class="notice__x" data-act="${dismiss}" aria-label="Dismiss">\u2715</button>
+    </div>`;
+}
+
+/*
+ * The rendered markup, so an unchanged notice is left completely alone.
+ *
+ * This runs on a timer as well as on every filter change, and rewriting the
+ * innerHTML restarts the entry and nudge animations - so a notice that had
+ * nothing new to say would twitch every fifteen seconds.
+ */
+let noticeSig = '';
+
 export function renderAlert() {
   const bar = $id('alertbar');
   if (!bar) return;
 
-  const overdue = state.status === 'ready' ? getOverdue() : [];
-  const n = overdue.length;
+  const ready = state.status === 'ready';
+  const overdue = ready ? getOverdue() : [];
+  const upcoming = ready ? getUpcoming() : [];
 
-  if (!n || n <= state.alertAckCount) {
-    bar.hidden = true;
-    bar.innerHTML = '';
-    return;
+  const cards = [];
+
+  if (noticeLive(overdue.length, state.alertAckCount, state.alertSnoozeUntil)) {
+    const n = overdue.length;
+    const days = Math.max(1, dayGap(overdue[0].dateKey, todayKey()));
+    cards.push(noticeHTML({
+      kind: 'late',
+      icon: WARN_ICON,
+      title: `${n} post${n === 1 ? '' : 's'} past due`,
+      detail: `${n === 1 ? 'Its date has' : 'Their dates have'} gone by without being marked
+        Posted \u00b7 ${escapeHtml(whoFrom(overdue))} \u00b7 oldest is ${days}
+        day${days === 1 ? '' : 's'} ago`,
+      action: `Review ${n === 1 ? 'it' : 'them'}`,
+      act: 'show-overdue',
+      dismiss: 'dismiss-alert',
+    }));
   }
 
-  const oldest = overdue[0];
-  const days = Math.max(1, Math.round(
-    (Date.parse(`${todayKey()}T00:00:00`) - Date.parse(`${oldest.dateKey}T00:00:00`)) / 86400000));
+  if (noticeLive(upcoming.length, state.upcomingAckCount, state.upcomingSnoozeUntil)) {
+    const n = upcoming.length;
+    const next = upcoming[0];
+    const gap = dayGap(todayKey(), next.dateKey);
+    // "at 12:00 AM" on a row nobody actually set a time on would be noise, so
+    // the time is only named when the sheet really carries one.
+    const when = gap === 0 ? 'today' : (gap === 1 ? 'tomorrow' : `in ${gap} days`);
+    const at = next.timeKnown && next.minuteOfDay ? ` at ${escapeHtml(next.timeLabel)}` : '';
+    cards.push(noticeHTML({
+      kind: 'soon',
+      icon: CLOCK_ICON,
+      title: `${n} post${n === 1 ? '' : 's'} coming up`,
+      detail: `Due in the next ${UPCOMING_WINDOW_DAYS + 1} days and not posted yet \u00b7
+        ${escapeHtml(whoFrom(upcoming))} \u00b7 next is ${when}${at}`,
+      action: `Review ${n === 1 ? 'it' : 'them'}`,
+      act: 'show-upcoming',
+      dismiss: 'dismiss-upcoming',
+    }));
+  }
 
-  const brands = Array.from(new Set(overdue.map((p) => brandMeta(p.brandKey).label)));
-  const who = brands.length === 1 ? brands[0] : `${brands.length} brands`;
+  const html = cards.join('');
+  if (html === noticeSig) return;
+  noticeSig = html;
 
-  bar.hidden = false;
-  bar.innerHTML = `
-    <svg class="alertbar__icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 3.6 1.8 20.4h20.4L12 3.6Z" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linejoin="round"/>
-      <path d="M12 9.6v4.6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-      <circle cx="12" cy="17.4" r="1.25" fill="currentColor"/>
-    </svg>
-    <div class="alertbar__body">
-      <b>${n} post${n === 1 ? '' : 's'} past due</b>
-      <span>${n === 1 ? 'Its date has' : 'Their dates have'} gone by without being marked
-        Posted \u00b7 ${escapeHtml(who)} \u00b7 oldest is ${days} day${days === 1 ? '' : 's'} ago</span>
-    </div>
-    <button class="btn btn--primary" data-act="show-overdue">Review ${n === 1 ? 'it' : 'them'}</button>
-    <button class="alertbar__x" data-act="dismiss-alert" aria-label="Dismiss">\u2715</button>`;
+  bar.hidden = !cards.length;
+  bar.innerHTML = html;
 }
 
 /* ------------------------------- filter bar -------------------------------- */
 
-const chip = (field, key, label, count, active, extra = '') =>
-  `<button class="fchip${extra}" data-act="toggle-filter" data-field="${field}" ` +
-  `data-value="${escapeHtml(key)}" aria-pressed="${active}">` +
-  `${label}<span class="fchip__n">${count}</span></button>`;
+/* ---------------------------------------------------------------------------
+   Filter bar.
+
+   One dropdown per facet rather than a wall of chips: with four facets and a
+   dozen values each, the chips pushed the calendar most of a screen down. Each
+   button says what is selected, so the bar still reads at a glance when it is
+   closed.
+   ------------------------------------------------------------------------- */
+
+/** One row inside an open dropdown. */
+const option = (field, key, label, count, active) =>
+  `<button class="fopt" role="menuitemcheckbox" aria-checked="${active}"
+      data-act="toggle-filter" data-field="${field}" data-value="${escapeHtml(key)}">
+    <span class="fopt__box" aria-hidden="true"></span>
+    <span class="fopt__label">${label}</span>
+    <span class="fopt__n">${count}</span>
+  </button>`;
+
+/**
+ * @param {string} field    key in state.filters
+ * @param {string} title    what the button says when nothing is picked
+ * @param {Array}  entries  [key, count] pairs, already ordered
+ * @param {Function} render  (key) -> label markup
+ */
+function facet(field, title, entries, render) {
+  const picked = state.filters[field];
+  const open = state.openFacet === field;
+
+  const summary = picked.size === 0
+    ? title
+    : (picked.size === 1
+        ? entries.find(([k]) => picked.has(k))?.[1].label ?? title
+        : `${title} \u00b7 ${picked.size}`);
+
+  const options = entries.map(([key, meta]) =>
+    option(field, key, render(key, meta), meta.count, picked.has(key))).join('');
+
+  return `<div class="facet${open ? ' is-open' : ''}" data-facet="${field}">
+      <button class="facet__btn" data-act="open-facet" data-field="${field}"
+              aria-expanded="${open}" aria-haspopup="true">
+        <span class="facet__title">${escapeHtml(summary)}</span>
+        ${picked.size ? `<span class="facet__n">${picked.size}</span>` : ''}
+        <svg class="facet__chev" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="facet__menu" role="menu" ${open ? '' : 'hidden'}>
+        <div class="facet__head">
+          <span>${escapeHtml(title)}</span>
+          ${picked.size ? `<button class="linkbtn" data-act="clear-facet"
+              data-field="${field}">Clear</button>` : ''}
+        </div>
+        ${options}
+      </div>
+    </div>`;
+}
 
 export function renderFilterBar() {
   const bar = $id('filterbar');
   if (!bar || !state.facets) return;
 
   const f = state.facets;
+  const withMeta = (map, order, metaFn) => {
+    const rows = order
+      ? orderedEntries(map, order)
+      : Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+    return rows.map(([k, count]) => [k, { ...metaFn(k), count }]);
+  };
 
-  const brandChips = Array.from(f.brands.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([k, n]) => {
-      const m = brandMeta(k);
-      return chip('brands', k,
-        `<span class="fchip__dot" style="--c:${m.hue}"></span>${escapeHtml(m.label)}`,
-        n, state.filters.brands.has(k));
-    }).join('');
+  const brands = withMeta(f.brands, null, brandMeta);
+  const platforms = withMeta(f.platforms, PLATFORM_ORDER, platformMeta);
+  const statuses = withMeta(f.statuses, STATUS_ORDER, statusMeta);
+  const types = withMeta(f.types, TYPE_ORDER, typeMeta);
 
-  const platformChips = orderedEntries(f.platforms, PLATFORM_ORDER).map(([k, n]) => {
-    const m = platformMeta(k);
-    const icon = m.icon
-      ? `<img class="fchip__logo" src="${m.icon}" alt="">`
-      : `<span class="fchip__dot" style="--c:${m.hue}"></span>`;
-    return chip('platforms', k, `${icon}${escapeHtml(m.label)}`, n,
-      state.filters.platforms.has(k), m.unset ? ' fchip--unset' : '');
-  }).join('');
-
-  const statusChips = orderedEntries(f.statuses, STATUS_ORDER).map(([k, n]) => {
-    const m = statusMeta(k);
-    return chip('statuses', k,
-      `<span class="fchip__dot" style="--c:${m.hue}"></span>${escapeHtml(m.label)}`,
-      n, state.filters.statuses.has(k), m.unset ? ' fchip--unset' : '');
-  }).join('');
-
-  const typeChips = orderedEntries(f.types, TYPE_ORDER).map(([k, n]) => {
-    const m = typeMeta(k);
-    return chip('types', k, escapeHtml(m.label), n,
-      state.filters.types.has(k), m.unset ? ' fchip--unset' : '');
-  }).join('');
+  const dot = (hue) => `<span class="fchip__dot" style="--c:${hue}"></span>`;
+  const logo = (m) => (m.icon
+    ? `<img class="fchip__logo" src="${m.icon}" alt="">`
+    : dot(m.hue));
 
   const shown = getFiltered().length;
   const overdueCount = getOverdue().length;
-  const active = FILTER_FIELDS.reduce((n, f) => n + state.filters[f].size, 0)
+  const active = FILTER_FIELDS.reduce((n, k) => n + state.filters[k].size, 0)
     + (state.filters.overdueOnly ? 1 : 0);
 
   bar.classList.toggle('is-open', state.filtersOpen);
@@ -170,15 +282,19 @@ export function renderFilterBar() {
       </svg>
       Filters${active ? `<span class="fbar-toggle__n">${active}</span>` : ''}
     </button>
-    <div class="fgroup"><span class="fgroup__label">Brand</span>${brandChips}</div>
-    <div class="fgroup"><span class="fgroup__label">Platform</span>${platformChips}</div>
-    <div class="fgroup"><span class="fgroup__label">Status</span>${statusChips}</div>
-    <div class="fgroup"><span class="fgroup__label">Type</span>${typeChips}</div>
+
+    <div class="facets">
+      ${facet('brands', 'Brand', brands, (k, m) => dot(m.hue) + escapeHtml(m.label))}
+      ${facet('platforms', 'Platform', platforms, (k, m) => logo(m) + escapeHtml(m.label))}
+      ${facet('statuses', 'Status', statuses, (k, m) => dot(m.hue) + escapeHtml(m.label))}
+      ${facet('types', 'Type', types, (k, m) => escapeHtml(m.label))}
+    </div>
+
     <div class="filterbar__tail">
       ${overdueCount ? `<button class="fchip fchip--overdue" data-act="toggle-overdue"
           aria-pressed="${state.filters.overdueOnly}"
           title="Only show postings whose date has passed without being marked Posted">
-          ⚠ Past due<span class="fchip__n">${overdueCount}</span></button>` : ''}
+          \u26a0 Past due<span class="fchip__n">${overdueCount}</span></button>` : ''}
       <span class="filterbar__count">showing <b>${shown}</b> of ${state.posts.length}</span>
       ${hasActiveFilters()
         ? '<button class="btn btn--ghost" data-act="clear-filters">Clear all</button>' : ''}

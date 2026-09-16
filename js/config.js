@@ -10,6 +10,13 @@
 export const CSV_URL =
   'https://docs.google.com/spreadsheets/d/e/2PACX-1vR26NJiJz14xBD0dY69D_RnA9F-JNtxqRDnQfUEKfnJVZtpPZHGfNH5Xj3mKIlz-s7lATp3gEk_WYDo/pub?gid=1769957223&single=true&output=csv';
 
+/**
+ * The editable sheet behind that CSV. The page is read-only by design, so the
+ * app bar carries a way back to the place where the data is actually changed.
+ */
+export const SHEET_URL =
+  'https://docs.google.com/spreadsheets/d/1L4t2KJTiqGpbkXegZUmaJEfNhB4_jT_3QpH9kSpQmA0/edit?usp=sharing';
+
 export const STORAGE_KEY = 'fmcal.v1';
 
 /** How often the page re-reads the sheet on its own. */
@@ -20,6 +27,20 @@ export const AUTO_REFRESH_MS = 60 * 1000;
  * vanishes within a frame or two reads as a flicker, not as loading.
  */
 export const LOADER_MIN_MS = 1000;
+
+/**
+ * How long a dismissed notification stays down before it raises itself again.
+ * Dismissing is "not now", not "never" - a past-due posting does not stop
+ * being past due because someone closed a box.
+ */
+export const ALERT_SNOOZE_MS = 10 * 60 * 1000;
+
+/**
+ * How far ahead the "coming up" notification looks, in days. Two means today,
+ * tomorrow and the day after, which is the window in which a post still needs
+ * assets approving rather than just watching.
+ */
+export const UPCOMING_WINDOW_DAYS = 2;
 
 export const MONTHS = {
   jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
