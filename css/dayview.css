@@ -132,6 +132,7 @@
 }
 
 .strip {
+  position: relative;          /* the dimming scrim is positioned against it */
   flex: 0 0 var(--strip-w);
   width: var(--strip-w);
   display: flex; flex-direction: column;
@@ -146,13 +147,34 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+}
 
-  /* The day you are on is the subject; its neighbours are context. */
-  opacity: .58;
+/* ---------------------------------------------------------------------------
+   The day you are on is the subject; its neighbours are context.
+
+   A scrim rather than opacity. Fading a card only moves it towards whatever is
+   behind it, which on the light theme means the inactive strips get LIGHTER
+   and the active one is the heaviest thing on screen - the opposite of what is
+   wanted. Painting over them darkens them in both themes, so the active strip
+   is the bright one either way.
+
+   It sits above the strip's content and is click-through, so a neighbour is
+   still perfectly usable while it is dimmed.
+   ------------------------------------------------------------------------- */
+.strip::after {
+  content: "";
+  position: absolute; inset: 0; z-index: 4;
+  background: var(--scrim);
+  pointer-events: none;
   transition: opacity .25s ease;
 }
-.rail.is-dragging .strip { transition: none; }
-.strip--active { opacity: 1; }
+.strip--active::after { opacity: 0; }
+
+/* A day you are not on takes no input except "bring me here", so it is one
+   click target from edge to edge rather than a card full of live controls. */
+.strip:not(.strip--active) { cursor: pointer; }
+.rail.is-dragging .strip::after { transition: none; }
+
 .strip--today { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
 /* a strip narrowed to one platform says so at a glance, from the outside */
 .strip--lensed { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
@@ -222,13 +244,32 @@ button.chip[aria-pressed="true"] .chip__logo { filter: none; }
   cursor: pointer;
 }
 
+/*
+ * Only the day you are on scrolls its own posts.
+ *
+ * The wheel acts on whatever is under the cursor, and the strips either side
+ * are half under it - so scrolling down a busy day used to drag a neighbour
+ * along too, or scroll the wrong day entirely when the pointer drifted. The
+ * neighbours are context; they show the top of the day and nothing more until
+ * you move to them.
+ *
+ * A wheel over a neighbour is not swallowed, though: with nothing to scroll
+ * here the browser hands it to the page, which is what the gesture would have
+ * done anywhere else on the screen. That is also why overscroll-behavior is
+ * only set on the ACTIVE strip - `contain` on a non-scrollable element stops
+ * the chain and the wheel would do nothing at all.
+ */
 .strip__body {
   flex: 1 1 auto;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
+  overflow-y: hidden;
   touch-action: pan-y;           /* a vertical finger drag scrolls posts, not the rail */
   padding: 10px;
   display: flex; flex-direction: column; gap: 12px;
+}
+.strip--active .strip__body {
+  overflow-y: auto;
+  /* stops a busy day handing its overscroll to the page mid-read */
+  overscroll-behavior-y: contain;
 }
 /* Post cards are flex items in a height-capped column, so without this they
    shrink: media placeholders lose their aspect ratio and the action bars get
@@ -277,26 +318,10 @@ button.chip[aria-pressed="true"] .chip__logo { filter: none; }
   font-variant-numeric: tabular-nums;
 }
 
-.railhint {
-  padding: 0 var(--gutter, 20px);
-  font-size: 11.5px; color: var(--text-faint);
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-}
-.kbd {
-  display: inline-block;
-  padding: 1px 5px;
-  border: 1px solid var(--border);
-  border-bottom-width: 2px;
-  border-radius: 5px;
-  background: var(--surface-2);
-  font-size: 10.5px; font-weight: 600;
-  font-family: inherit;
-}
-
 @media (max-width: 720px) {
   :root { --strip-w: 300px; }
   .dayview { margin: 0 calc(-1 * 14px); }
-  .dayview__head, .rail, .railhint, .railbar { --gutter: 14px; }
+  .dayview__head, .rail, .railbar { --gutter: 14px; }
   .strip { min-height: 320px; }
 }
 

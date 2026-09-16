@@ -359,11 +359,16 @@ export function toast(title, msg, kind = 'error', ms = 7000) {
   if (ms) setTimeout(kill, ms);
 }
 
-/** Shown inside a view when filters exclude everything. */
+/**
+ * Shown inside a view when the filters exclude everything.
+ *
+ * One line, not a panel. A month with nothing in it is not an error and there
+ * is nothing to read about it - and in the day view every pixel this takes is
+ * a pixel off the strips, which are sized from whatever room is left below it.
+ * The button says what the sentence used to.
+ */
 export const emptyViewHTML = (what) =>
-  `<div class="empty"><strong>No ${escapeHtml(what)} match these filters</strong>
-     Try clearing a filter to widen the selection.
-     <div class="statepanel__actions">
-       <button class="btn" data-act="clear-filters">Clear all filters</button>
-     </div>
+  `<div class="empty">
+     <strong>No ${escapeHtml(what)} match these filters</strong>
+     <button class="btn btn--ghost" data-act="clear-filters">Clear filters</button>
    </div>`;

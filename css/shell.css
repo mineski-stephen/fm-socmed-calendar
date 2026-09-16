@@ -2,26 +2,8 @@
    shell.css — app bar, tabs, filter bar, view roots.
    ========================================================================== */
 
-/* ---------------------------------------------------------------------------
-   The app bar rolls up when you scroll down and comes back when you scroll up,
-   so reading gets the height while the controls stay one flick away.
-
-   Sliding it up with a transform alone is not enough here. A transform is
-   purely visual: the bar keeps its place in the layout, so everything below it
-   stays exactly where it was and the day strips - which are sized from where
-   the rail actually sits on screen - gain nothing. The negative margin is what
-   actually hands the space back; the transform is what makes that look like
-   the bar sliding away rather than the page jumping.
-
-   --chrome-h is the bar's MEASURED height, written by main.js. It wraps to two
-   rows on a narrow window, so a hardcoded 62px would leave a band of empty
-   space behind on exactly the screens with the least to spare.
-   ------------------------------------------------------------------------- */
-
 .appbar {
   position: sticky; top: 0; z-index: 40;
-  transition: transform .24s cubic-bezier(.22, .61, .36, 1),
-              margin-bottom .24s cubic-bezier(.22, .61, .36, 1);
   display: flex; align-items: center; gap: 16px;
   flex-wrap: wrap;
   min-height: var(--appbar-h);
@@ -60,19 +42,6 @@
 
 /* ------------------------------- tabs ----------------------------------- */
 
-:root[data-chrome="hidden"] .appbar {
-  transform: translateY(-100%);
-  margin-bottom: calc(-1 * var(--chrome-h, var(--appbar-h)));
-}
-
-/* The sticky rows below it re-anchor to where the bar used to be. */
-:root[data-chrome="hidden"] .tabs { top: 0; }
-:root[data-chrome="hidden"] .filterbar { top: var(--tabs-h, 43px); }
-
-@media (prefers-reduced-motion: reduce) {
-  .appbar { transition: none; }
-}
-
 .tabs {
   position: sticky; top: var(--appbar-h); z-index: 30;
   display: flex; gap: 2px;
@@ -99,7 +68,7 @@
 /* ----------------------------- filter bar -------------------------------- */
 
 .filterbar {
-  position: sticky; top: calc(var(--appbar-h) + var(--tabs-h, 43px)); z-index: 20;
+  position: sticky; top: calc(var(--appbar-h) + 43px); z-index: 20;
   display: flex; align-items: flex-start; gap: 8px 18px; flex-wrap: wrap;
   padding: 10px 20px;
   background: color-mix(in srgb, var(--bg) 92%, transparent);

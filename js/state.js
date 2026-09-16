@@ -50,7 +50,6 @@ export const state = {
   upcomingAckCount: -1,
   upcomingSnoozeUntil: 0,
 
-  chromeHidden: false,        // app bar rolled up by scrolling down
 
   _cache: { key: '', filtered: null, byDay: null, stats: null },
 };

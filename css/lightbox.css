@@ -43,32 +43,38 @@
 }
 .lb__x:hover { background: rgba(255, 255, 255, .22); }
 
-/* The arrows are laid out as siblings of the post rather than pinned to the
-   screen edges, so they sit right against what they move. */
+/* The arrows sit over the dimmed neighbours at the stage's edges, out of the
+   way of the post being read but still obviously attached to the carousel. */
 .lb__stage {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   display: flex; align-items: stretch; justify-content: center;
-  gap: 14px;
-  padding: 0 18px 20px;
+  padding: 0 0 20px;
 }
 
 /* ---------------------------------------------------------------------------
    The carousel.
 
-   Every post is laid out side by side in one track and the track slides, so
-   the next post is already drawn before it is asked for and moving reads as
-   one continuous strip rather than as a page swap. The viewport is the window
-   it slides behind.
+   Laid out exactly like the day rail, for the same reason: every post sits
+   side by side in one track, the neighbours stay on screen rather than being
+   clipped away, and the track slides. You can see what is coming, and moving
+   reads as one continuous strip rather than as a page swap.
+
+   The centring is done with percentage padding on the track - a percentage
+   there resolves against the VIEWPORT's width, which is what lets the middle
+   slide be centred without measuring anything in JavaScript. The transform is
+   then a whole number of slide-plus-gap steps.
 
    Nothing here scrolls: js/lightbox.js scales each post down until it fits the
    height it has. An overlay opened to examine a post that then makes you
    scroll to see the bottom of it is not doing its job.
    ------------------------------------------------------------------------- */
 
+.lb { --lb-slide: 560px; --lb-gap: 24px; }
+
 .lb__viewport {
-  flex: 0 1 560px;
-  max-width: 560px;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   align-self: stretch;
@@ -76,15 +82,17 @@
 
 .lb__track {
   display: flex;
+  gap: var(--lb-gap);
   height: 100%;
-  transform: translateX(calc(var(--i, 0) * -100%));
+  padding-inline: calc(50% - var(--lb-slide) / 2);
+  transform: translateX(calc(var(--i, 0) * -1 * (var(--lb-slide) + var(--lb-gap))));
   transition: transform .34s cubic-bezier(.22, .61, .36, 1);
 }
 .lb__track.is-instant { transition: none; }
 
 .lb__slide {
-  flex: 0 0 100%;
-  width: 100%;
+  flex: 0 0 var(--lb-slide);
+  width: var(--lb-slide);
   min-width: 0;
   height: 100%;
   display: flex; flex-direction: column; align-items: stretch;
@@ -107,6 +115,7 @@
 
 .lb__caption {
   margin-top: 12px;
+  transition: opacity .3s ease;
   text-align: center;
   font-size: 12.5px;
   color: rgba(255, 255, 255, .7);
@@ -115,13 +124,41 @@
 /* The post is drawn at full size here, so it gets its own surface rather than
    inheriting the strip's compact framing. */
 .lb__frame {
+  position: relative;          /* the dimming scrim is positioned against it */
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: 0 24px 70px rgba(0, 0, 0, .55);
 }
+
+/* Same scrim as the day rail, and for the same reason: the post you are on is
+   the subject, the ones beside it are context.
+
+   It sits on the CARD, not on the slide. The slide is a full-height column, so
+   scrimming that painted a dark band from the top of a neighbour all the way
+   down the page, past the bottom of the post it was supposed to be dimming.
+   The frame clips it to its own rounded corners instead.
+
+   Click-through, so a dimmed post can still be clicked to bring it over. */
+.lb__frame::after {
+  content: "";
+  position: absolute; inset: 0; z-index: 4;
+  background: var(--scrim);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s ease;
+}
+.lb__slide:not(.is-current) .lb__frame::after { opacity: 1; }
+
+/* the line under a dimmed post recedes with it */
+.lb__slide:not(.is-current) .lb__caption { opacity: .35; }
 .lb__mock { padding: 14px; background: var(--surface-2); }
+
+/* The phone mocks are capped narrow so they read as a phone inside a day strip.
+   In here there is height to spare and the whole point is a closer look, so
+   they get more of it - still within what the fit-to-height pass allows. */
+.lb__frame .phone { --phone-w: 400px; }
 .lb__mock--simple { padding: 0; background: none; }
 .lb__mock .pcard { border: 0; border-radius: 0; }
 
@@ -137,14 +174,19 @@
 .lb__frame .pcard__top { border-bottom-color: var(--border-soft); }
 
 .lb__nav {
-  flex: 0 0 auto;
-  align-self: center;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 6;
   appearance: none; border: 0;
   width: 46px; height: 46px; border-radius: 50%;
-  background: rgba(255, 255, 255, .13);
+  background: rgba(255, 255, 255, .16);
+  backdrop-filter: blur(4px);
   color: #fff; font-size: 23px; line-height: 1;
   cursor: pointer;
 }
+.lb__nav--prev { left: 18px; }
+.lb__nav--next { right: 18px; }
 .lb__nav:hover { background: rgba(255, 255, 255, .26); }
 .lb__nav[disabled] { opacity: .22; cursor: default; }
 .lb__nav[hidden] { display: none; }
@@ -160,16 +202,18 @@
 .strip__zoom svg { width: 15px; height: 15px; }
 .strip__zoom:hover { color: var(--accent); background: var(--surface-3); }
 
+@media (max-width: 900px) {
+  .lb { --lb-slide: min(560px, calc(100vw - 96px)); --lb-gap: 16px; }
+}
+
 @media (max-width: 720px) {
-  /* No room for arrows beside the post at this width, so they move to the
-     bottom corners and the viewport takes the whole screen. */
-  .lb__stage { padding: 0 14px 74px; gap: 0; }
-  .lb__viewport { flex: 1 1 auto; max-width: none; }
+  /* The arrows would sit on top of the post at this width, so they drop to the
+     bottom corners and the slide takes almost the whole screen. */
+  .lb { --lb-slide: calc(100vw - 52px); --lb-gap: 12px; }
+  .lb__stage { padding-bottom: 74px; }
   .lb__hint { display: none; }
   .lb__nav {
-    position: fixed; bottom: 16px; z-index: 2;
+    top: auto; bottom: 16px; transform: none;
     background: rgba(255, 255, 255, .2);
   }
-  .lb__nav--prev { left: 18px; }
-  .lb__nav--next { right: 18px; }
 }

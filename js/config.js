@@ -125,17 +125,17 @@ export const BRAND_ALIASES = {
 };
 
 /* ---------------------------------------------------------------------------
-   Platforms. `mock` selects the Layout-mode renderer; null means this platform
-   is always drawn as a simple card, which is how TikTok / YouTube / LinkedIn
-   stay simple-only without a single special case elsewhere in the codebase.
+   Platforms. `mock` names the Layout-mode renderer in js/mocks.js; null means
+   this platform has none and is always drawn as a simple card. That one field
+   is the whole decision - there is no special case for it anywhere else.
    ------------------------------------------------------------------------- */
 export const PLATFORM_META = {
   facebook:  { label: 'Facebook',  icon: 'img/fb.png',       hue: 'var(--pf-facebook)',  mock: 'fb' },
   instagram: { label: 'Instagram', icon: 'img/ig.png',       hue: 'var(--pf-instagram)', mock: 'ig' },
   x:         { label: 'X',         icon: 'img/x.png',        hue: 'var(--pf-x)',         mock: 'x'  },
-  tiktok:    { label: 'TikTok',    icon: 'img/tiktok.png',   hue: 'var(--pf-tiktok)',    mock: null },
-  youtube:   { label: 'YouTube',   icon: 'img/yt.png',       hue: 'var(--pf-youtube)',   mock: null },
-  linkedin:  { label: 'LinkedIn',  icon: 'img/linkedin.png', hue: 'var(--pf-linkedin)',  mock: null },
+  tiktok:    { label: 'TikTok',    icon: 'img/tiktok.png',   hue: 'var(--pf-tiktok)',    mock: 'tt' },
+  youtube:   { label: 'YouTube',   icon: 'img/yt.png',       hue: 'var(--pf-youtube)',   mock: 'yt' },
+  linkedin:  { label: 'LinkedIn',  icon: 'img/linkedin.png', hue: 'var(--pf-linkedin)',  mock: 'li' },
 };
 
 export const PLATFORM_FALLBACK = {
@@ -282,7 +282,59 @@ export const GLYPHS = {
   xViews:    'img/x_views_black.png',
   xBookmark: 'img/x_bookmark_black.png',
   xShare:    'img/x_share_black.png',
+
+  ttLike:     'img/tiktok_like_black.png',
+  ttComment:  'img/tiktok_comment_black.png',
+  ttBookmark: 'img/tiktok_bookmark_black.png',
+  ttShare:    'img/tiktok_share_black.png',
+  ttHome:     'img/tiktok_menu_home_black.png',
+  ttShop:     'img/tiktok_menu_shop_black.png',
+  ttInbox:    'img/tiktok_menu_inbox.png',
+  ttProfile:  'img/tiktok_menu_profile.png',
+
+  ytLike:    'img/yt_like_black.png',
+  ytComment: 'img/yt_comment_black.png',
+  ytSave:    'img/yt_save_black.png',
+  ytShare:   'img/yt_share_black.png',
+  ytRemix:   'img/yt_remix_black.png',
+  ytHome:    'img/yt_menu_home_black.png',
+  ytShorts:  'img/yt_menu_shorts_black.png',
+  ytSubs:    'img/yt_menu_subscriptions_black.png',
+
+  liLike:    'img/linkedin_like_black.png',
+  liComment: 'img/linkedin_comment_black.png',
+  liRepost:  'img/linkedin_repost_black.png',
+  liShare:   'img/linkedin_share_black.png',
 };
+
+/**
+ * TikTok chrome that is NOT a stencil.
+ *
+ * Everything in GLYPHS is black ink on transparency, which is what lets it be
+ * used as a CSS mask and take its colour from the page. These two are the real
+ * artwork - the follow button is TikTok red with a white cross, the create
+ * button carries its cyan and red fringes - and they are almost fully opaque.
+ * Run through the mask primitive they come out as solid blocks, so they are
+ * drawn as ordinary images instead. Do not move them into GLYPHS.
+ */
+export const TT_ART = {
+  plus:   'img/tiktok_red_plus.png',
+  upload: 'img/tiktok_menu_upload.png',
+};
+
+/**
+ * LinkedIn's own six reactions, in its own order: Like, Celebrate, Support,
+ * Love, Insightful, Funny. Full-colour artwork like FB_REACTS, so they are
+ * drawn as images rather than tinted.
+ */
+export const LI_REACTS = [
+  'img/linkedin_react_like.png',
+  'img/linkedin_react_clap.png',
+  'img/linkedin_react_give.png',
+  'img/linkedin_react_heart.png',
+  'img/linkedin_react_idea.png',
+  'img/linkedin_react_laugh.png',
+];
 
 export const PLAY_BADGE = 'img/fb_play.png';
 

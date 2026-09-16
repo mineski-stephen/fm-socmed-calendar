@@ -1,0 +1,78 @@
+/* ============================================================================
+   mock-tiktok.css  —  pairs with js/mock-tiktok.js  (.mock-tt)
+   Reference: mock_layouts/tiktok.png
+
+   Only the chrome that is TikTok's own. The screen, the rail, the meta block
+   and the nav bar all come from css/mock-phone.css.
+   ========================================================================== */
+
+/* The feed tabs across the top. The reference carries LIVE / Community /
+   Friends / Following / For You; at this width only the last two fit legibly,
+   and the underlined "For You" is the part that says which feed this is. */
+.mock-tt__tabs {
+  position: absolute; top: 12px; left: 0; right: 0; z-index: 3;
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  font-size: 12.5px; font-weight: 600;
+  color: rgba(255, 255, 255, .68);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+}
+.mock-tt__tabs .is-on {
+  color: #fff; font-weight: 700;
+  position: relative;
+}
+.mock-tt__tabs .is-on::after {
+  content: "";
+  position: absolute; left: 50%; bottom: -5px;
+  width: 20px; height: 2.5px; margin-left: -10px;
+  background: #fff; border-radius: 2px;
+}
+.mock-tt__search {
+  position: absolute; right: 12px;
+  width: 17px; height: 17px;
+  color: #fff;
+}
+
+/* ------------------------------- the rail --------------------------------- */
+
+/* The avatar with TikTok's red follow + hanging off its bottom edge. */
+.mock-tt__avwrap {
+  position: relative;
+  display: block;
+  margin-bottom: 6px;
+}
+/* The asset already IS the red circle with a white cross, so nothing is drawn
+   around it - it only needs placing on the avatar's bottom edge. */
+.mock-tt__plus {
+  position: absolute; left: 50%; bottom: -8px;
+  transform: translateX(-50%);
+  width: 17px; height: 17px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .45));
+}
+
+/* A liked video's heart is red; everything else in the rail stays white. */
+.mock-tt__act--like .glyph { color: var(--pf-tiktok); }
+
+/* -------------------------------- the sound -------------------------------- */
+
+.mock-tt__sound {
+  display: flex; align-items: center; gap: 5px;
+  margin-top: 5px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, .92);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
+  min-width: 0;
+}
+.mock-tt__sound span {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mock-tt__note { width: 12px; height: 12px; flex: 0 0 auto; }
+
+/* --------------------------------- the nav -------------------------------- */
+
+/* The upload button is a wide rounded rectangle rather than an icon-and-word,
+   so it opts out of the shared nav item layout. */
+.mock-tt__upload { justify-content: center; }
+.mock-tt__upload img {
+  width: 34px; height: auto;
+  display: block;
+}

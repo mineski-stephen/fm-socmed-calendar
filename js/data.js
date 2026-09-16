@@ -11,7 +11,7 @@ import {
   PLATFORM_META, PLATFORM_FALLBACK, PLATFORM_ALIASES,
   TYPE_META, TYPE_FALLBACK, TYPE_ALIASES, EXT_HINTS,
   STATUS_META, STATUS_FALLBACK, STATUS_ALIASES,
-  FB_REACTS, CAROUSEL_DEFAULT,
+  FB_REACTS, LI_REACTS, CAROUSEL_DEFAULT,
 } from './config.js';
 import { parseCSV, resolveColumns, rowsToRecords } from './csv.js';
 import {
@@ -254,6 +254,10 @@ function makeEngagement(post, platformKey) {
   return {
     likes, comments, shares, reposts, saves, views,
     reacts: pickN(rng, FB_REACTS, 3),
+    // LinkedIn has its own six, so it gets its own draw rather than borrowing
+    // Facebook's. Taken after the line above so the Facebook picks on every
+    // existing post stay exactly where they were.
+    liReacts: pickN(rng, LI_REACTS, 3),
   };
 }
 

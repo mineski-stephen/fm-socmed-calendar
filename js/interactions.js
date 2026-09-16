@@ -33,33 +33,50 @@ function glideTo(el, target, { duration = 420, onStep, onDone } = {}) {
 
   const started = performance.now();
   let raf = 0;
-  let cancelled = false;
+  let timer = 0;
+  let done = false;
 
   // easeOutCubic - quick to start, soft to finish, no overshoot
   const ease = (t) => 1 - Math.pow(1 - t, 3);
 
-  const step = (now) => {
-    if (cancelled) return;
-    const t = Math.min(1, (now - started) / duration);
+  const stop = () => {
+    if (done) return;
+    done = true;
+    cancelAnimationFrame(raf);
+    clearInterval(timer);
+  };
+
+  /*
+   * One step, positioned from the CLOCK rather than from a frame counter, so
+   * it does not matter which driver called it or how many were missed.
+   */
+  const tick = () => {
+    if (done) return;
+    const t = Math.min(1, (performance.now() - started) / duration);
     el.scrollLeft = from + dist * ease(t);
     if (onStep) onStep();
-    if (t < 1) raf = requestAnimationFrame(step);
-    else if (onDone) onDone();
+    if (t >= 1) { stop(); if (onDone) onDone(); }
   };
-  raf = requestAnimationFrame(step);
 
-  // If frames never arrive - an occluded window starves rAF - the rail would
-  // be left stranded part-way. Land it on the target instead of animating.
-  const bail = setTimeout(() => {
-    if (!cancelled) {
-      cancelled = true;
-      el.scrollLeft = target;
-      if (onStep) onStep();
-      if (onDone) onDone();
-    }
-  }, duration + 260);
+  /*
+   * Driven by rAF AND by a timer, not by rAF with a rescue at the end.
+   *
+   * A window that is occluded - behind another window, or on a monitor that
+   * has gone to sleep - stops receiving frames while still reporting itself
+   * visible, so rAF alone leaves the rail stranded. This used to be covered by
+   * a single "land it anyway" timeout, but the next gesture cancelled that
+   * timeout before it could fire: clicking through days faster than one glide
+   * took moved the highlight while the rail never moved at all, and the days
+   * you were heading for never came into view to be built. Running both
+   * drivers from the start means a cancelled glide always hands over to a live
+   * one. They both read the clock, so they compute the same position and
+   * cannot fight each other.
+   */
+  const frame = () => { if (done) return; tick(); if (!done) raf = requestAnimationFrame(frame); };
+  raf = requestAnimationFrame(frame);
+  timer = setInterval(tick, 32);
 
-  return () => { cancelled = true; cancelAnimationFrame(raf); clearTimeout(bail); };
+  return stop;
 }
 
 /**
@@ -163,11 +180,23 @@ export function initDayRail(rail, { onDayChange, onMoved } = {}) {
 
   let cancelGlide = () => {};
 
+  /*
+   * A settle queued by the scroll listener, waiting to run.
+   *
+   * It has to be cancellable from here. A free scroll leaves one of these
+   * pending, and if a deliberate move starts before it fires, it lands 140ms
+   * later and drags the rail back to whichever day happened to be under the
+   * centre mid-flight - which is what made rapid clicks along the ruler jump
+   * around.
+   */
+  let snapTimer = 0;
+
   const maxScroll = () => Math.max(0, rail.scrollWidth - rail.clientWidth);
 
   /** Animate to an exact scroll position, replacing any glide in flight. */
   const snapTo = (left, { duration = 420 } = {}) => {
     cancelGlide();
+    clearTimeout(snapTimer);
     // The scrollbar is driven from the glide itself rather than from the
     // rail's scroll event, so the thumb tracks movement we caused without
     // waiting for the event to come back round to us.
@@ -200,13 +229,26 @@ export function initDayRail(rail, { onDayChange, onMoved } = {}) {
     return clamp(rail.scrollLeft + delta, 0, maxScroll());
   }
 
+  let lastNavAt = 0;
+
   function goToIndex(i, { smooth = true, focus = false, duration: ms } = {}) {
     const list = strips();
     if (!list.length) return;
     const idx = clamp(i, 0, list.length - 1);
 
+    /*
+     * A second request before the first has landed re-targets rather than
+     * queueing: only the last day asked for matters. It also glides faster,
+     * because the rail is already moving and playing the full easing curve for
+     * each click in a burst is what makes a run along the ruler feel like it
+     * is lagging behind the pointer.
+     */
+    const now = performance.now();
+    const rapid = now - lastNavAt < 280;
+    lastNavAt = now;
+
     const animate = smooth && !prefersReducedMotion();
-    const duration = animate ? (ms ?? 460) : 0;
+    const duration = animate ? (ms ?? (rapid ? 180 : 460)) : 0;
     lockUntil = performance.now() + duration + 80;
 
     snapTo(offsetOf(idx), { duration });
@@ -237,8 +279,14 @@ export function initDayRail(rail, { onDayChange, onMoved } = {}) {
   function setActive(i) {
     const list = strips();
     list.forEach((s, n) => {
-      s.classList.toggle('strip--active', n === i);
-      s.setAttribute('aria-selected', String(n === i));
+      const on = n === i;
+      s.classList.toggle('strip--active', on);
+      s.setAttribute('aria-selected', String(on));
+      // Everything inside a day you are not on stops taking input. The strip
+      // itself stays live so a click on it still brings that day over; see
+      // syncInert in render-dayview.js, which re-applies this after a rebuild.
+      for (const part of s.children) part.inert = !on;
+      s.title = on ? '' : 'Go to this day';
     });
     const key = list[i]?.dataset.key;
     if (key && onDayChange) onDayChange(key);
@@ -276,7 +324,6 @@ export function initDayRail(rail, { onDayChange, onMoved } = {}) {
    * because the rail is a real overflow-x scroller.
    */
 
-  let snapTimer = 0;
   const queueSnap = () => {
     clearTimeout(snapTimer);
     snapTimer = setTimeout(() => goToIndex(currentIndex(), { duration: 260 }), 140);

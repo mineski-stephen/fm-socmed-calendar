@@ -23,13 +23,9 @@
    ========================================================================== */
 
 import { escapeHtml, clamp, prefersReducedMotion } from './utils.js';
-import { platformMeta, brandMeta } from './data.js';
+import { brandMeta } from './data.js';
 import { postHeaderHTML, noteHTML, simpleCardHTML } from './render-post.js';
-import { mockFacebookHTML } from './mock-facebook.js';
-import { mockInstagramHTML } from './mock-instagram.js';
-import { mockXHTML } from './mock-x.js';
-
-const MOCKS = { fb: mockFacebookHTML, ig: mockInstagramHTML, x: mockXHTML };
+import { mockFor } from './mocks.js';
 
 let box = null;          // the overlay element, while open
 let viewport = null;     // the window the track slides behind
@@ -49,12 +45,12 @@ let detach = null;
  */
 function slideHTML(entry) {
   const { post, platformKey } = entry;
-  const mock = platformMeta(platformKey).mock;
+  const mock = mockFor(platformKey);
   const b = brandMeta(post.brandKey);
 
-  const frame = (mock && MOCKS[mock])
+  const frame = mock
     ? `${postHeaderHTML(post, platformKey)}
-       <div class="lb__mock">${MOCKS[mock](post, platformKey)}</div>
+       <div class="lb__mock">${mock(post, platformKey)}</div>
        ${noteHTML(post)}`
     : `<div class="lb__mock lb__mock--simple">
          ${simpleCardHTML(post, platformKey, { showMedia: true })}</div>`;
@@ -132,6 +128,7 @@ function sync() {
   });
 }
 
+/** Move by `delta` posts. Clamped, so the ends simply stop. */
 export function step(delta) {
   if (!box || entries.length < 2) return;
   const next = clamp(index + delta, 0, entries.length - 1);
@@ -233,7 +230,7 @@ export function open(list, start = 0, label = '') {
     <div class="lb__bar">
       <span class="lb__title">${escapeHtml(label || 'Post')}</span>
       <span class="lb__count" data-lb-count></span>
-      <span class="lb__hint" data-lb-nav>Scroll to move between posts</span>
+      <span class="lb__hint" data-lb-nav>Scroll, or click a post beside it, to move</span>
       <button class="lb__x" data-act="lightbox-close" aria-label="Close (Esc)">✕</button>
     </div>
     <div class="lb__stage${entries.length > 1 ? '' : ' lb__stage--solo'}" data-lb-stage>
@@ -255,11 +252,40 @@ export function open(list, start = 0, label = '') {
   sync();
   fitAll();
 
-  // Clicking the backdrop closes; clicking the post itself must not.
+  /*
+   * What a click in the overlay means.
+   *
+   * Hit-tested against the CARDS, not against their columns. A column is the
+   * full height of the stage, so testing those made almost the whole overlay
+   * "on a post" and left nowhere to click to dismiss it; a card is the thing
+   * you can actually see, so it is the thing the click should be measured
+   * against.
+   *
+   *   on another post   -> bring it over
+   *   on this post      -> nothing; its own controls handle themselves
+   *   anywhere else     -> close
+   *
+   * Worked out from WHERE the pointer landed rather than from what it hit: a
+   * post that is not the current one is inert, so the event never reaches the
+   * card itself and arrives at an ancestor instead. Geometry is the only thing
+   * that can tell those clicks apart.
+   */
+  const cardUnder = (x, y) => Array.from(track.children).findIndex((slide) => {
+    const card = slide.querySelector('.lb__frame');
+    if (!card) return false;
+    const b = card.getBoundingClientRect();
+    return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom;
+  });
+
   const onDown = (e) => {
-    if (e.target === box
-        || e.target.hasAttribute?.('data-lb-stage')
-        || e.target.hasAttribute?.('data-lb-viewport')) close();
+    // A button owns its own click - the arrows, the close, anything inside the
+    // post being read.
+    if (e.target.closest?.('[data-act]')) return;
+
+    const hit = cardUnder(e.clientX, e.clientY);
+    if (hit === index) return;            // the post being read; leave it alone
+    if (hit >= 0) { step(hit - index); return; }
+    close();                              // empty space: dismiss
   };
   box.addEventListener('pointerdown', onDown);
 

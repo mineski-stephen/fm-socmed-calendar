@@ -46,6 +46,9 @@
 .ph--16x9  { aspect-ratio: 16 / 9; }
 .ph--191   { aspect-ratio: 1.91 / 1; }
 .ph--9x16  { aspect-ratio: 9 / 16; }
+/* No ratio of its own: used inside the phone mocks, where the placeholder is
+   stretched to the display it is filling rather than setting its own shape. */
+.ph--fill  { width: 100%; height: 100%; }
 
 /* ---------------------------------------------------------------------------
    Video.

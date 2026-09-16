@@ -149,18 +149,20 @@ from that one table.
 | `Facebook` | Facebook mock | `img/fb.png` |
 | `Instagram` | Instagram mock | `img/ig.png` |
 | `X` (or `Twitter`) | X mock | `img/x.png` |
-| `Tiktok` | simple card | `img/tiktok.png` |
-| `YouTube` | simple card | `img/yt.png` |
-| `LinkedIn` | simple card | `img/linkedin.png` |
+| `Tiktok` | TikTok mock — a phone screen | `img/tiktok.png` |
+| `YouTube` | YouTube Shorts mock — a phone screen | `img/yt.png` |
+| `LinkedIn` | LinkedIn mock | `img/linkedin.png` |
 | *(blank)* | simple card | — |
 
-Whether a platform gets a mock is controlled by one field, `mock`, in `PLATFORM_META`. TikTok,
-YouTube and LinkedIn have `mock: null`, which is the whole reason they always render as simple
-cards — there is no special-casing anywhere else in the code.
+Whether a platform gets a mock is controlled by one field, `mock`, in `PLATFORM_META`: it
+names a renderer in `js/mocks.js`, and `null` means the platform has no mock and falls back to
+a simple card. That one lookup is the only place the decision is made — there is no
+special-casing anywhere else in the code.
 
 **To add a platform:** add an entry to `PLATFORM_META` with a label, a logo path, a colour and
 `mock: null`, plus aliases if needed, and add its key to `PLATFORM_ORDER`. It will immediately
-appear in the filters, the calendar chips and the stats.
+appear in the filters, the calendar chips and the stats. To give it a mock later, write the
+module and register it in `js/mocks.js`.
 
 ### Types of post
 
@@ -214,12 +216,6 @@ The line under the title shows the post count and how long ago the data was fetc
 
 The sheet address lives in `SHEET_URL` in `js/config.js`, next to the `CSV_URL` it publishes
 from - so pointing the page at a different tracker means editing one file.
-
-**The bar rolls up when you scroll down and comes back when you scroll up.** On the calendar
-and stats tabs that is the page's own scroll; in the day view, where the page itself does not
-scroll, it is the scroll inside a day column. Either way the day strips are re-measured and
-grow into the space the bar gave back, so reading a long day gets the height and the controls
-are never more than a flick away.
 
 ### Keeping up to date
 
@@ -325,8 +321,23 @@ button with a badge showing how many are active.
 
 - **Simple** lists each day's posts as compact rows grouped by brand: platform, status, format,
   caption, asset links and any note. Best for scanning and for checking what still needs work.
-- **Layout** draws Facebook, Instagram and X posts as mock-ups of the real platform, so you can
-  see roughly how a post will read once it ships. Everything else stays a simple card.
+- **Layout** draws each post as a mock-up of the platform it is going out on, so you can see
+  roughly how it will read once it ships. All six platforms have one; a row with no platform
+  set stays a simple card.
+
+### While it loads, and when nothing matches
+
+The **loading screen** fans the three brand marks out from a single point in the middle, then
+settles them into a slow bob. They are written straight into `index.html` rather than built
+from `BRAND_META`, because the loader has to be on screen before a single module has parsed —
+covering that gap is the whole point of it. It holds for a minimum of `LOADER_MIN_MS`; a
+spinner that appears and vanishes inside two frames reads as a glitch, not as loading.
+
+When the filters exclude everything — or a month is simply empty — the notice is **one row**,
+not a panel. A blank month is not an error and there is nothing to read about it; the old
+block ran to about 175px of mostly empty space, and in the day view that came straight off the
+strips, which are sized from wherever the rail ends up sitting. The button now says what the
+sentence used to.
 
 ### Deep links
 
@@ -373,6 +384,7 @@ Ways to move through the days:
 | Input | Result |
 |---|---|
 | **The day ruler above the rail** | Click a date to go to it, or drag across to scrub through the month |
+| **Any other day column** | Click anywhere on it to bring it to the middle |
 | Drag a strip sideways | Free scroll, with a flick landing on a day |
 | Left / Right arrow | One day |
 | PageUp / PageDown | One week |
@@ -401,8 +413,12 @@ readable; the upper is where the posts just get airier rather than clearer. Belo
 Resizing the window re-fits the columns and re-centres the selected day - every strip moved,
 so the offset that had it in the middle a moment ago would leave it half off the edge.
 
-Neighbouring strips are dimmed a little so the day you are on reads as the subject and the
-ones beside it as context.
+Neighbouring strips are **darkened** so the day you are on reads as the subject and the ones
+beside it as context. That is a wash painted over them, not reduced opacity: fading a card only
+moves it towards whatever is behind it, which on the light theme makes the inactive strips
+*lighter* and the active one the heaviest thing on screen — the opposite of what is wanted. The
+wash is lighter on the light theme, because the same strength over white goes grey very fast.
+It is click-through, so a dimmed neighbour is still perfectly usable.
 
 ### The day ruler
 
@@ -414,21 +430,43 @@ A slot per day of the month, with a box that tracks whichever day the rail is ce
 - **Click** a date to glide to it; **drag** across the ruler to scrub through the month. A
   press that has not moved still counts as a click, so a click never turns into an accidental
   scrub.
+- **Clicking several dates quickly** re-targets rather than queueing: you land on the last one
+  you clicked, and the rail glides faster while you are still clicking rather than playing the
+  full easing curve for every date you passed through.
 - Every date is a real button, so Tab reaches them and Enter lands on that day.
 
 It replaces a proportional scrollbar because at this scale the days themselves are the useful
 landmarks: you scrub to "the 18th", not to "62% of the way along".
 
 **The mouse wheel does not move the rail.** It does only what the browser does with it: scroll
-the posts in the day under the cursor, or the page. Scrolling down a long day and moving
-between days were fighting each other, so crossing the month is the ruler's job. A genuine
-horizontal trackpad gesture still scrolls the rail, because the rail is a real `overflow-x`
-scroller.
+the posts in the day you are on, or the page. Scrolling down a long day and moving between
+days were fighting each other, so crossing the month is the ruler's job. A genuine horizontal
+trackpad gesture still scrolls the rail, because the rail is a real `overflow-x` scroller.
+
+**A day you are not on takes no input except "bring me here."** Its contents are marked
+`inert`, so nothing inside answers a click, a hover, a drag-select or the Tab key: you cannot
+copy a caption, open a link, collapse a post or filter by platform on a column that is only
+half on screen. A click anywhere on it moves the rail to that day instead — one target from
+edge to edge.
+
+The strip element itself stays live, which is what receives that click. The `inert` goes on its
+header and body rather than on the strip, so the strip keeps its `role="option"` and
+`aria-selected`: marking the whole thing inert would leave the rail's listbox reporting a single
+day to a screen reader.
+
+**Only the day you are on scrolls its own posts.** The wheel acts on whatever is under the
+cursor, and the strips either side are half under it — so scrolling a busy day used to drag a
+neighbour along too, or scroll the wrong day entirely when the pointer drifted.
+
+A wheel over a neighbour is **not swallowed**, though: with nothing to scroll there the browser
+hands it to the page, the way the gesture behaves anywhere else on screen. Note the day view is
+sized to fit the window on purpose, so the page itself has only a few dozen pixels of travel —
+the wheel is no longer dead, but there is not much for it to move either.
 
 ### Reading one platform at a time
 
-The per-platform chips in a day's header are buttons. **Clicking one narrows that strip to
-that platform** - a day carrying a Facebook post, an Instagram crosspost and two TikToks can
+The per-platform chips in a day's header are buttons, on the day you are on. **Clicking one
+narrows that strip to that platform** - a day carrying a Facebook post, an Instagram crosspost and two TikToks can
 be read one channel at a time. Click the same chip again, or the **show all** link, to clear
 it.
 
@@ -471,16 +509,29 @@ simple card for a platform with no mock are wildly different heights, and one ha
 would either crop the tall ones or shrink the short ones for nothing. Anything that already
 fits is left alone rather than being blown up into a blurry poster.
 
-**The posts sit side by side in one track and the track slides.** They are all built when the
-overlay opens, so the next post is already drawn before you ask for it, and moving reads as
-one continuous strip rather than as a page swap.
+**It is laid out exactly like the day rail**, for the same reasons. Every post sits side by
+side in one track, the ones either side stay on screen rather than being clipped away, and the
+track slides. You can see what is coming, and moving reads as one continuous strip rather than
+as a page swap. They are all built when the overlay opens, so the next post is already drawn
+before you ask for it.
+
+The posts either side are **darkened** with the same wash the day strips use, so the one you
+are reading is the bright one. The wash sits on the card itself, not on its column — a column
+is full height, so scrimming that painted a dark band from the top of a neighbour all the way
+down the page, past the bottom of the post it was meant to be dimming.
 
 | Input | Result |
 |---|---|
 | **Scrolling** | One post. There is nothing to scroll inside a post, so the wheel has one job here |
-| The **arrows either side of the post** | One post. They sit against the post rather than out at the screen edges, where a control that far from the subject reads as decoration |
+| **Clicking a post beside it** | Brings that one over |
+| The **arrows at the edges** | One post |
 | Left / Right arrow | One post |
-| `Escape`, or clicking the backdrop | Close |
+| `Escape`, the ×, or clicking any empty space | Close |
+
+A click is measured against the **cards**, not against the full-height columns they sit in.
+Clicking a card always moves to it and never dismisses — so walking along the carousel by
+clicking the same spot cannot close the overlay by accident — and everything that is not a
+card is backdrop.
 
 Moving on has to be **earned** - 120px of wheel travel, then a short cooldown. Acting on the
 first event would turn one trackpad flick into five posts, because momentum keeps delivering
@@ -490,9 +541,13 @@ In a carousel the posts are **top-aligned**, so stepping between a tall one and 
 does not jump the header up and down the screen. A single post has nothing to stay in step
 with, so it is simply centred.
 
-The carousel is built from the *filtered* day, so it shows what the strip behind it shows
-rather than quietly reintroducing posts you filtered out. Focus returns to whatever opened it,
-and only the post on screen is reachable by Tab or a screen reader.
+The carousel shows exactly what the strip behind it shows — the global filters, **and** that
+strip's own platform lens if one is set. Opening a day narrowed to Instagram and getting the
+Facebook posts back would make the overlay disagree with the thing it was opened from.
+
+Only the post on screen is reachable by Tab or a screen reader, which is also why a click is
+resolved from where the pointer landed rather than from what it hit: the posts either side are
+inert, so the event never reaches them. Focus returns to whatever opened the overlay.
 
 A post's own controls work here too: **See more** on a long caption expands it in place, and
 clicking the caption copies it.
@@ -538,6 +593,17 @@ Every number respects the active filters.
 Charts are hand-built inline SVG with no charting library, which is also why they re-colour
 instantly when the theme changes.
 
+**Type and colour on this tab follow a fixed convention**, set as tokens at the top of
+`css/stats.css` rather than picked per component. Six sizes (32 / 24 / 16 / 14 / 12 / 11) and
+three colour roles: `--text` for the figure or name itself, `--text-dim` for everything
+supporting it, and `--text-faint` for the genuinely absent and nothing else.
+
+That last rule is not stylistic. `--text-faint` measures 3.1:1 against a light surface and
+4.0:1 against a dark one — both under the 4.5:1 small text needs — and it had been carrying
+card hints, table headers, axis labels and the footnote, which is most of the small text here.
+It now marks one thing: a matrix cell with nothing in it. If you add to this tab, use the
+tokens; a raw `px` or colour in a rule is the bug.
+
 ---
 
 ## Mock layouts
@@ -570,7 +636,8 @@ are development references only and are not loaded by the site.
 **Facebook** — avatar and page name top-left, posting date and time underneath, the `...` and
 `x` controls top-right; caption; media placeholder by format; bottom strip with Like, Comment
 and Share each carrying a count, and three reaction emoji on the right. On a narrow card the three words drop and the
-glyphs keep their counts, rather than letting the row cram together.
+glyphs keep their counts, rather than letting the row cram together. The three reaction
+bubbles are drawn from Facebook's own set.
 
 **Instagram** — gradient-ringed avatar and handle top-left, hamburger top-right; 4:5 media;
 carousels get a `1/4` counter, dot indicators, arrows and swipe; action row of like, comment,
@@ -580,7 +647,35 @@ caption; date and time underneath.
 **X** — avatar on the left; name, `@handle`, a dot and the date in `m/d/yy`; caption; media in
 a rounded frame; bottom strip of reply, repost, like, views, bookmark and share.
 
-**TikTok, YouTube, LinkedIn** — simple cards by design, in both view modes.
+**LinkedIn** — structurally the Facebook card, which is what it is. What tells them apart at a
+glance is LinkedIn's own chrome: a rounded-**square** avatar rather than a circle, a `+ Follow`
+control in the header, the caption above the media, and an action bar of outline icons where
+only like, comment and repost carry a count. The reactions are LinkedIn's own six — Like,
+Celebrate, Support, Love, Insightful, Funny — with three drawn per post from the same seed
+everything else uses, so they never reshuffle.
+
+**TikTok** and **YouTube Shorts** are not cards at all — they are **phone screens**. The
+creative fills a 9:16 display and everything else floats on top of it: a status bar, the feed
+chrome, a right-hand rail of actions with their counts, the handle and caption bottom-left, and
+the app's own bottom navigation. Drawing them as cards would be a picture of the wrong thing.
+
+Four things follow from that, and they are deliberate:
+
+- **The screen is always dark, in both themes.** Both apps are black behind the video, and a
+  light-mode "phone" would look like neither. The theme tokens are redefined inside `.phone`,
+  which is also what lets the shared caption builder come out legible in there with no
+  special-casing in JavaScript.
+- **The screen is width-capped.** Left to fill a day strip it would be 500px across and read as
+  a poster rather than a phone.
+- **A play badge appears over video** even though neither app shows one during playback. It is
+  our marker for "this one moves", not a copy of their UI, so it is drawn small.
+- **There is no status bar.** A clock and a battery say "phone" but say nothing about the post,
+  and on a planning tool a rendered time is exactly the sort of set dressing somebody could
+  read as data from the tracker.
+
+TikTok adds the follow `+` on the avatar and the sound credit under the caption; Shorts adds a
+Subscribe pill beside the channel and labels Save and Share with a word rather than a count,
+the way it does.
 
 ### About the engagement numbers
 
@@ -613,8 +708,12 @@ css/
   post-card.css         simple card, caption and note styling
   media.css             the media placeholders
   mock-facebook.css     |
-  mock-instagram.css    |  one stylesheet per mock, paired 1:1 with its module
-  mock-x.css            |
+  mock-instagram.css    |
+  mock-x.css            |  one stylesheet per mock, paired 1:1 with its module
+  mock-linkedin.css     |
+  mock-tiktok.css       |
+  mock-youtube.css      |
+  mock-phone.css        the phone scaffold TikTok and Shorts share
   lightbox.css          the overlay
   stats.css             KPI cards and charts
   states.css            loading, error and empty states
@@ -631,9 +730,13 @@ js/
   render-calendar.js    the month grid
   render-dayview.js     the rail and day columns
   render-post.js        captions, media, notes, the simple card
+  mocks.js              the one registry mapping a platform to its renderer
   mock-facebook.js      |
-  mock-instagram.js     |  one module per mock
-  mock-x.js             |
+  mock-instagram.js     |
+  mock-x.js             |  one module per mock
+  mock-linkedin.js      |
+  mock-tiktok.js        |
+  mock-youtube.js       |
   charts.js             the SVG chart helpers
   lightbox.js           the blacked-out overlay: spotlight and day carousel
   render-stats.js       the dashboard
@@ -641,7 +744,10 @@ js/
   main.js               boot and the render dispatcher
 font/                   Inter, self-hosted (two variable .ttf files)
 img/                    logos, profile pictures, icons (incl. clip_black.png,
-                        the Files paperclip)
+                        the Files paperclip). Everything named *_black is a
+                        black stencil used as a CSS mask; tiktok_red_plus.png
+                        and tiktok_menu_upload.png are full-colour artwork and
+                        are drawn as images (see TT_ART in config.js)
 mock_layouts/           reference screenshots (not used by the site)
 ```
 

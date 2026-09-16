@@ -22,11 +22,7 @@ import {
   simpleCardHTML, platformMark, postHeaderHTML, noteHTML, entryKey,
 } from './render-post.js';
 import { emptyViewHTML } from './render-shell.js';
-import { mockFacebookHTML } from './mock-facebook.js';
-import { mockInstagramHTML } from './mock-instagram.js';
-import { mockXHTML } from './mock-x.js';
-
-const MOCKS = { fb: mockFacebookHTML, ig: mockInstagramHTML, x: mockXHTML };
+import { mockFor } from './mocks.js';
 
 let builtKey = '';
 let detachHydration = null;
@@ -34,9 +30,9 @@ let detachHydration = null;
 /**
  * One post on one platform.
  *
- * In Layout mode a platform renders as a mock only if PLATFORM_META gives it
- * one - that single lookup is why TikTok, YouTube, LinkedIn and Unspecified
- * stay simple cards with no special-casing here.
+ * In Layout mode a platform renders as a mock only if the registry in mocks.js
+ * has one for it - that single lookup is why a row with no platform set stays
+ * a simple card, with no special-casing here.
  *
  * Every mock is wrapped in the same header strip the simple cards use, so the
  * platform a post belongs to is always named, even when the mock already looks
@@ -46,14 +42,14 @@ export function postHTML(entry) {
   const { post, platformKey } = entry;
 
   if (state.mode === 'layout') {
-    const mock = platformMeta(platformKey).mock;
-    if (mock && MOCKS[mock]) {
+    const mock = mockFor(platformKey);
+    if (mock) {
       // The note sits outside the body on purpose: collapsing hides the mock,
       // but a scheduling remark is exactly what you still want to see.
       const collapsed = state.collapsed.has(entryKey(post, platformKey)) ? ' is-collapsed' : '';
       return `<article class="postframe${collapsed}">
           ${postHeaderHTML(post, platformKey)}
-          <div class="postframe__body">${MOCKS[mock](post, platformKey)}</div>
+          <div class="postframe__body">${mock(post, platformKey)}</div>
           ${noteHTML(post)}
         </article>`;
     }
@@ -155,12 +151,31 @@ function stripHeadHTML(key, posts, only = '') {
 
 /* ----------------------------- lazy hydration ----------------------------- */
 
+/**
+ * A day you are not on is a picture of that day, not a working copy of it.
+ *
+ * Its header and body are marked `inert`, so nothing inside answers a click, a
+ * hover, a drag-select or the Tab key: no copying a caption, opening a link,
+ * collapsing a post or filtering by platform on a strip that is only half on
+ * screen. The strip element ITSELF stays live, which is what lets a click on
+ * it mean "bring this day over".
+ *
+ * Applied to the two children rather than to the strip so the strip keeps its
+ * role="option" and aria-selected in the accessibility tree - inert on the
+ * strip would leave the rail's listbox reporting a single day.
+ */
+function syncInert(strip) {
+  const on = strip.classList.contains('strip--active');
+  for (const part of strip.children) part.inert = !on;
+}
+
 function hydrate(strip) {
   if (strip.dataset.hydrated === '1') return;
   const key = strip.dataset.key;
   const posts = getByDay().get(key) || [];
   strip.querySelector('.strip__body').innerHTML = stripBodyHTML(posts, strip.dataset.only || '');
   strip.dataset.hydrated = '1';
+  syncInert(strip);
 }
 
 /**
@@ -236,6 +251,7 @@ export function refreshStripBodies() {
     strip.querySelector('.strip__head').outerHTML =
       stripHeadHTML(key, posts, strip.dataset.only || '');
     strip.classList.toggle('strip--empty', posts.length === 0);
+    syncInert(strip);   // the header element was replaced, so re-mark it
 
     if (strip.dataset.hydrated !== '1') return;
     strip.dataset.hydrated = '0';
@@ -258,6 +274,7 @@ function repaintStrip(strip) {
   strip.querySelector('.strip__body').innerHTML = stripBodyHTML(posts, only);
   strip.dataset.hydrated = '1';
   strip.classList.toggle('strip--lensed', !!only);
+  syncInert(strip);   // the header element was replaced, so re-mark it
 }
 
 /**
@@ -330,7 +347,13 @@ export function renderDayView(container) {
     if (key === today) cls.push('strip--today');
     if (!posts.length) cls.push('strip--empty');
     if (posts.some(isOverdue)) cls.push('strip--overdue');
+    /*
+     * The whole strip is the navigation target, not just its header. Its
+     * contents are inert unless it is the day you are on (see syncInert), so
+     * on any other day a click lands here and means "bring this day over".
+     */
     return `<section class="${cls.join(' ')}" data-key="${key}" data-hydrated="0"
+              data-act="goto-day"
               role="option" aria-selected="${key === state.selectedDayKey}"
               aria-label="${escapeHtml(key)}">
         ${stripHeadHTML(key, posts)}
@@ -369,20 +392,12 @@ export function renderDayView(container) {
       </div>
     </div>`;
 
-  const hint = `<div class="railhint">
-      <span>Drag the bar above, or the strips themselves, to move across the month.
-        <span class="kbd">\u2190</span> <span class="kbd">\u2192</span> steps a day,
-        <span class="kbd">PgUp</span> <span class="kbd">PgDn</span> a week.
-        The mouse wheel scrolls a day's posts.</span>
-    </div>`;
-
   const emptyNote = total ? '' : `<div class="dayview__head">${emptyViewHTML('posts')}</div>`;
 
   container.innerHTML =
     `<div class="dayview">${head}${emptyNote}${scrollbar}` +
     `<div class="rail" id="day-rail" tabindex="0" role="listbox" ` +
-    `aria-label="Days of the month">${strips}</div>` +
-    `${hint}</div>`;
+    `aria-label="Days of the month">${strips}</div></div>`;
 
   builtKey = `${y}-${mo}|${state.mode}`;
   const rail = container.querySelector('.rail');

@@ -1,0 +1,117 @@
+/* ============================================================================
+   mock-linkedin.css  —  pairs with js/mock-linkedin.js  (.mock-li)
+   Reference: mock_layouts/linkedin.png
+
+   Structurally Facebook's card. What makes it read as LinkedIn is the square
+   avatar, the Follow control in the header, and an action bar of outline icons
+   where only two of them carry a count.
+   ========================================================================== */
+
+.mock-li {
+  container-type: inline-size;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.mock-li__head {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 11px 12px 8px;
+}
+
+/* A rounded square, not a circle - a company page on LinkedIn never has a
+   round mark, and it is the fastest way to tell this card from the Facebook
+   one at a glance. */
+.mock-li__av {
+  width: 42px; height: 42px; border-radius: 6px;
+  object-fit: cover; flex: 0 0 auto;
+}
+.mock-li__av--txt {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 14px; font-weight: 700;
+}
+
+.mock-li__who { min-width: 0; flex: 1; }
+.mock-li__name {
+  font-size: 13.5px; font-weight: 700; letter-spacing: -.01em;
+  color: var(--text);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.mock-li__name[data-act="open"]:not(.is-inert):hover { text-decoration: underline; }
+.mock-li__check { width: 14px; height: 14px; color: var(--text-dim); flex: 0 0 auto; }
+
+.mock-li__meta {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11.5px; color: var(--text-faint);
+  margin-top: 1px;
+}
+.mock-li__globe { width: 12px; height: 12px; opacity: .8; }
+
+.mock-li__follow {
+  display: inline-flex; align-items: center; gap: 3px;
+  flex: 0 0 auto;
+  color: var(--pf-linkedin);
+  font-size: 12.5px; font-weight: 700;
+}
+.mock-li__follow svg { width: 14px; height: 14px; }
+
+.mock-li__tool {
+  width: 22px; height: 22px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px; line-height: 1;
+  color: var(--text-dim);
+}
+
+.mock-li__cap { padding: 0 12px 10px; }
+.mock-li__media { background: var(--surface-2); }
+
+/* -------------------------------- action bar ------------------------------- */
+
+.mock-li__bar {
+  display: flex; align-items: center;
+  border-top: 1px solid var(--border-soft);
+  padding: 5px 10px;
+  gap: 16px;
+}
+
+/*
+ * Same baseline treatment as the Facebook bar, and for the same reason: an
+ * icon has no baseline of its own, so the browser synthesises one from the
+ * bottom of its box and parks the whole thing above the number beside it. The
+ * offset drops it onto the middle of the text's cap band.
+ */
+.mock-li__act {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  line-height: 1;
+  color: var(--text-dim);
+}
+.mock-li__act .glyph {
+  width: 17px; height: 17px;
+  position: relative;
+  top: 3.5px;
+}
+.mock-li__act b {
+  font-size: 12px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+.mock-li__reacts {
+  display: inline-flex; align-items: center;
+  margin-left: auto;
+  align-self: center;
+  flex: 0 0 auto;
+}
+.mock-li__reacts img {
+  width: 17px; height: 17px; border-radius: 50%;
+  margin-left: -5px;
+  box-shadow: 0 0 0 1.5px var(--surface);
+}
+.mock-li__reacts img:first-child { margin-left: 0; }
+
+@container (max-width: 320px) {
+  .mock-li__bar { gap: 10px; }
+  .mock-li__follow { display: none; }
+}

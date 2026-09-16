@@ -115,14 +115,20 @@ function render(scope) {
   syncHash();
 }
 
+/*
+ * Landing on a day.
+ *
+ * The readout is updated at once, because that is the feedback that the click
+ * registered. The expensive half - measuring thirty strips and building the
+ * mocks for whichever came into range - is held back a beat, so a run of rapid
+ * clicks along the ruler does that work once for the day you settle on instead
+ * of once per day you passed through.
+ */
+let dayCommit = 0;
+
 function onRailDay(key) {
   state.selectedDayKey = key;
-  // A strip's platform lens belongs to the day you were reading, so moving on
-  // drops it. Leaving it set would hide posts on a day nobody ever filtered.
-  clearStripFilters(key);
-  // The rail can be moved without a scroll event ever firing, so this is where
-  // the strips that just came into range get built.
-  hydrateVisible();
+
   const pos = $('[data-railpos]');
   if (pos) {
     const p = partsFromKey(key);
@@ -130,6 +136,16 @@ function onRailDay(key) {
     pos.textContent = d.toLocaleDateString(undefined,
       { weekday: 'short', month: 'short', day: 'numeric' });
   }
+
+  clearTimeout(dayCommit);
+  dayCommit = setTimeout(() => {
+    // A strip's platform lens belongs to the day you were reading, so moving on
+    // drops it. Leaving it set would hide posts on a day nobody ever filtered.
+    clearStripFilters(key);
+    // The rail can be moved without a scroll event ever firing, so this is
+    // where the strips that just came into range get built.
+    hydrateVisible();
+  }, 110);
 }
 
 /* --------------------------------- data ----------------------------------- */
@@ -341,13 +357,18 @@ const ACTIONS = {
   },
 
   /**
-   * Every post for one day, as a carousel. Built from the FILTERED day list so
-   * the overlay shows what the strip behind it shows, rather than quietly
-   * reintroducing posts the user has filtered out.
+   * Every post for one day, as a carousel.
+   *
+   * Built from what the strip behind it is actually showing: the global
+   * filters via getByDay, and that strip's own platform lens if one is set.
+   * Opening a day narrowed to Instagram and getting the Facebook posts back
+   * would make the overlay disagree with the thing it was opened from.
    */
   'expand-day'(el) {
     const key = el.dataset.key;
-    const list = expandByPlatform(getByDay().get(key) || []);
+    const only = el.closest('.strip')?.dataset.only || '';
+    let list = expandByPlatform(getByDay().get(key) || []);
+    if (only) list = list.filter((e) => e.platformKey === only);
     if (!list.length) return;
     lightbox.open(list, 0, dayTitle(key));
   },
@@ -441,6 +462,18 @@ const ACTIONS = {
 
   'ruler-day'(el) { rail?.goToIndex(+el.dataset.i); },
 
+  /**
+   * A click on a day strip: take me to that day.
+   *
+   * Only reachable on a strip you are NOT on - the contents of the active one
+   * handle their own clicks, and the contents of every other one are inert, so
+   * a click there lands on the strip itself.
+   */
+  'goto-day'(el) {
+    if (el.classList.contains('strip--active')) return;
+    rail?.goToKey(el.dataset.key);
+  },
+
   open(el) {
     const url = el.dataset.url;
     if (url) window.open(url, '_blank', 'noopener,noreferrer');
@@ -523,95 +556,6 @@ function armSnooze() {
   if (!due.length) return;
   const wait = Math.min(...due) - Date.now();
   snoozeTimer = setTimeout(() => { renderAlert(); armSnooze(); }, wait + 50);
-}
-
-/* ---------------------------------------------------------------------------
-   Rolling the app bar out of the way.
-
-   Scrolling down hides it and scrolling up brings it back, so reading gets the
-   height and the controls are never more than a flick away. Two things drive
-   it: the window's own scroll on the calendar and stats tabs, and a strip's
-   internal scroll in the day view, where the page itself never scrolls at all.
-   Both feed one state, so the bar cannot end up half-hidden.
-
-   Hiding it makes the rail taller, so the strips are re-measured on every
-   toggle - and for a moment after, because that resize moves the very
-   scrollTop that is being watched. Without that pause the two would drive each
-   other: taller strip, less to scroll, reads as scrolling up, bar returns,
-   shorter strip, and round again.
-   ------------------------------------------------------------------------- */
-
-const CHROME_ENGAGE = 8;      // px of travel before a scroll counts as intent
-let chromeSettleUntil = 0;
-
-/**
- * Write the app bar's and tab row's real heights into CSS variables.
- *
- * The bar wraps to two rows once the window is narrow enough, so the amount of
- * space it gives back when it rolls up is not a constant. Measuring it is the
- * difference between the strips growing by exactly the right amount and a band
- * of empty page being left behind on the screens that can least afford it.
- */
-function measureChrome() {
-  const bar = document.querySelector('.appbar');
-  const tabs = document.querySelector('.tabs');
-  const root = document.documentElement.style;
-  if (bar) root.setProperty('--chrome-h', `${bar.offsetHeight}px`);
-  if (tabs) root.setProperty('--tabs-h', `${tabs.offsetHeight}px`);
-}
-
-function setChrome(hidden) {
-  if (state.chromeHidden === hidden) return;
-  if (performance.now() < chromeSettleUntil) return;
-  state.chromeHidden = hidden;
-  document.documentElement.dataset.chrome = hidden ? 'hidden' : 'shown';
-  chromeSettleUntil = performance.now() + 420;
-  // The rail's height is measured from where it sits on screen, which just
-  // changed. Re-measure after the transition so the strips take the space.
-  if (state.view === 'day') {
-    sizeRail();
-    setTimeout(sizeRail, 260);
-  }
-}
-
-/** Turn a scroll position and its previous value into show or hide. */
-function chromeFromScroll(top, last, floor) {
-  if (top <= floor) { setChrome(false); return; }
-  const dy = top - last;
-  if (dy > CHROME_ENGAGE) setChrome(true);
-  else if (dy < -CHROME_ENGAGE) setChrome(false);
-}
-
-function watchChrome() {
-  measureChrome();
-  // The bar re-wraps as the window narrows, and the sync label changes width as
-  // it counts up, so its height is not measured once and trusted forever.
-  if (typeof ResizeObserver === 'function') {
-    const ro = new ResizeObserver(measureChrome);
-    const bar = document.querySelector('.appbar');
-    const tabs = document.querySelector('.tabs');
-    if (bar) ro.observe(bar);
-    if (tabs) ro.observe(tabs);
-  }
-
-  let lastWindow = window.scrollY;
-  window.addEventListener('scroll', () => {
-    const top = window.scrollY;
-    chromeFromScroll(top, lastWindow, 12);
-    lastWindow = top;
-  }, { passive: true });
-
-  // Day view: the page does not scroll, the strip does. Delegated on capture
-  // because strip bodies are replaced constantly and scroll does not bubble.
-  let lastStrip = 0;
-  let lastStripEl = null;
-  document.addEventListener('scroll', (e) => {
-    const el = e.target;
-    if (!(el instanceof Element) || !el.classList?.contains('strip__body')) return;
-    if (el !== lastStripEl) { lastStripEl = el; lastStrip = el.scrollTop; return; }
-    chromeFromScroll(el.scrollTop, lastStrip, 12);
-    lastStrip = el.scrollTop;
-  }, { capture: true, passive: true });
 }
 
 /**
@@ -752,9 +696,6 @@ function boot() {
   // href so the button is never a dead link if this ever fails to run.
   const sheet = $('#btn-sheet');
   if (sheet) sheet.href = SHEET_URL;
-
-  document.documentElement.dataset.chrome = 'shown';
-  watchChrome();
 
   window.addEventListener('hashchange', () => {
     // syncHash() uses replaceState, which fires no event, so anything that

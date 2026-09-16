@@ -26,16 +26,32 @@
 <link rel="stylesheet" href="css/mock-facebook.css">
 <link rel="stylesheet" href="css/mock-instagram.css">
 <link rel="stylesheet" href="css/mock-x.css">
+<link rel="stylesheet" href="css/mock-phone.css">
+<link rel="stylesheet" href="css/mock-tiktok.css">
+<link rel="stylesheet" href="css/mock-youtube.css">
+<link rel="stylesheet" href="css/mock-linkedin.css">
 <link rel="stylesheet" href="css/stats.css">
 <link rel="stylesheet" href="css/lightbox.css">
 <link rel="stylesheet" href="css/states.css">
 </head>
 <body>
 
+<!--
+  The three brands, fanning out from the middle.
+
+  Written into the markup rather than built from BRAND_META, because the loader
+  has to be on screen before a single module has parsed - the whole point of it
+  is to cover that gap. --i is the slot each mark settles into, -1 / 0 / +1
+  either side of centre; the rest is in css/states.css.
+-->
 <div class="loader" id="loader">
-  <img class="loader__mark" src="img/profile_funalomax.png" alt="">
-  <div class="loader__ring" role="status" aria-label="Loading"></div>
+  <div class="loader__marks" role="status" aria-label="Loading">
+    <img class="loader__mark" style="--i:-1" src="img/profile_funalomax_studios.jpg" alt="">
+    <img class="loader__mark loader__mark--lead" style="--i:0" src="img/profile_funalomax.png" alt="">
+    <img class="loader__mark" style="--i:1"  src="img/profile_solaire_online.jpg" alt="">
+  </div>
   <p class="loader__label">Loading the tracker&hellip;</p>
+  <div class="loader__bar"><i></i></div>
 </div>
 
 <header class="appbar">

@@ -1,0 +1,60 @@
+/* ============================================================================
+   mock-youtube.css  —  pairs with js/mock-youtube.js  (.mock-yt)
+   Reference: mock_layouts/yt.png
+
+   Only the chrome that is Shorts' own. The screen, the rail, the meta block
+   and the nav bar all come from css/mock-phone.css.
+   ========================================================================== */
+
+.mock-yt__top {
+  position: absolute; top: 12px; left: 0; right: 0; z-index: 3;
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 12px;
+  color: #fff;
+}
+.mock-yt__top svg {
+  width: 19px; height: 19px;
+  fill: currentColor;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .5));
+  flex: 0 0 auto;
+}
+.mock-yt__top .spacer { flex: 1; }
+
+/* ------------------------------- the rail --------------------------------- */
+
+/* Shorts labels Save and Share with a word instead of a count, so the line
+   under an icon has to read as a label as well as a number. */
+.mock-yt__act--like .glyph { color: #fff; }
+
+/* ------------------------------ the channel ------------------------------- */
+
+.mock-yt__channel {
+  display: flex; align-items: center; gap: 7px;
+  min-width: 0;
+}
+.mock-yt__channel .phone__handle {
+  min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mock-yt__sub {
+  flex: 0 0 auto;
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: #fff;
+  color: #0f0f0f;
+  font-size: 10.5px; font-weight: 700;
+}
+
+/* --------------------------------- the nav -------------------------------- */
+
+/* The create button is a filled circle with no label, so it opts out of the
+   shared nav item layout. */
+.mock-yt__plus { justify-content: center; }
+.mock-yt__plus svg {
+  width: 26px; height: 26px;
+  padding: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .16);
+  color: #fff;
+  fill: none;
+}

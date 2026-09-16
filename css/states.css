@@ -52,13 +52,26 @@
 .statepanel--error { border-left: 4px solid var(--danger); text-align: left; }
 .statepanel--error .statepanel__actions { justify-content: flex-start; }
 
+/*
+ * "Nothing here" - one row, not a panel.
+ *
+ * The old block ran to about 175px of mostly empty space. On a blank month in
+ * the day view that came straight off the strips, which are measured from
+ * wherever the rail ends up sitting; on the calendar it left a hole under an
+ * already empty grid.
+ */
 .empty {
-  padding: 46px 20px;
-  text-align: center;
-  color: var(--text-faint);
+  display: flex; align-items: center; justify-content: center;
+  flex-wrap: wrap; gap: 4px 12px;
+  padding: 9px 14px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+  color: var(--text-dim);
   font-size: 13px;
 }
-.empty strong { display: block; color: var(--text-dim); font-size: 14px; margin-bottom: 5px; }
+.empty strong { color: var(--text); font-weight: 600; }
+.empty .btn { padding: 4px 10px; font-size: 12.5px; }
 
 /* --------------------------- loading skeleton ---------------------------- */
 
@@ -124,24 +137,96 @@
 }
 .loader[hidden] { display: flex !important; opacity: 0; visibility: hidden; pointer-events: none; }
 
-.loader__mark {
-  width: 64px; height: 64px;
-  border-radius: 50%;
-  object-fit: cover;
-  box-shadow: var(--shadow-md);
-  animation: loaderpop .6s cubic-bezier(.2, .9, .3, 1.2) both;
-}
-@keyframes loaderpop {
-  from { transform: scale(.85); opacity: 0; }
-  to   { transform: scale(1);   opacity: 1; }
+/* ---------------------------------------------------------------------------
+   The three brands arriving.
+
+   They start stacked in the middle and fan out to their slots, which is both a
+   nicer thing to watch than a spinner and a reminder of whose tracker this is.
+   Each carries the same circular frame, because all three source images are
+   circular crops.
+
+   --i is set per mark in the markup: -1, 0, +1. One keyframe set drives all
+   three; only the slot and the delay differ.
+   ------------------------------------------------------------------------- */
+
+/* Spread wider than a mark, so all three brands are fully visible once they
+   land rather than two thirds hidden behind the middle one. */
+.loader { --loader-spread: 70px; --loader-mark: 62px; }
+
+/*
+ * All three sit on the same point and are moved apart by transform alone, so
+ * the group is centred at every frame of the animation. Stacking them with
+ * margins instead would mean the layout box changing as they spread, and the
+ * whole thing sliding sideways while it played.
+ */
+.loader__marks {
+  position: relative;
+  width: calc(var(--loader-mark) + var(--loader-spread) * 2);
+  height: var(--loader-mark);
 }
 
-.loader__ring {
-  width: 34px; height: 34px;
+.loader__mark {
+  position: absolute; top: 0; left: 50%;
+  margin-left: calc(var(--loader-mark) / -2);
+  width: var(--loader-mark); height: var(--loader-mark);
   border-radius: 50%;
-  border: 3px solid color-mix(in srgb, var(--accent) 22%, transparent);
-  border-top-color: var(--accent);
-  animation: spin .75s linear infinite;
+  object-fit: cover;
+  background: var(--surface-2);
+  border: 2px solid var(--bg);
+  box-shadow: var(--shadow-md);
+  animation:
+    loaderfan .7s cubic-bezier(.22, .9, .3, 1.1) both,
+    loaderbob 2.4s ease-in-out infinite;
+  animation-delay: 0ms, calc(800ms + var(--i) * 160ms);
+}
+/* FUNalo MAX is the tracker's own brand, so it is the one on top of the pile
+   while they are still stacked. */
+.loader__mark--lead { z-index: 2; }
+
+@keyframes loaderfan {
+  0%   { opacity: 0; transform: translateX(0) scale(.5); }
+  55%  { opacity: 1; }
+  72%  { transform: translateX(calc(var(--i) * var(--loader-spread) * 1.1)) scale(1.05); }
+  100% { opacity: 1; transform: translateX(calc(var(--i) * var(--loader-spread))) scale(1); }
+}
+
+/*
+ * The settle. It has to restate the fanned-out position: two animations on one
+ * element both writing transform means the later one wins outright, so this
+ * would snap them back to the middle if it only carried the bob.
+ */
+@keyframes loaderbob {
+  0%, 100% { transform: translateX(calc(var(--i) * var(--loader-spread))) translateY(0); }
+  50%      { transform: translateX(calc(var(--i) * var(--loader-spread))) translateY(-7px); }
+}
+
+/* An indeterminate sweep rather than a spinner: the marks are already the
+   thing being looked at, so this only needs to say "still working". */
+.loader__bar {
+  width: 132px; height: 3px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  overflow: hidden;
+}
+.loader__bar i {
+  display: block; width: 40%; height: 100%;
+  border-radius: 99px;
+  background: var(--accent);
+  animation: loadersweep 1.15s ease-in-out infinite;
+}
+@keyframes loadersweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+/* Nothing moves if the reader would rather it did not; the marks simply are
+   where they end up. */
+@media (prefers-reduced-motion: reduce) {
+  .loader__mark {
+    animation: none;
+    transform: translateX(calc(var(--i) * var(--loader-spread)));
+  }
+  .loader__bar i { animation: none; width: 100%; }
 }
 
 .loader__label {

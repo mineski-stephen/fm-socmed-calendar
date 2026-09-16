@@ -1,0 +1,186 @@
+/* ============================================================================
+   mock-phone.css — the phone scaffold TikTok and YouTube Shorts share.
+
+   Both platforms are full-screen vertical video
+   rather than a card in a feed: the creative fills the display and every other
+   element floats on top of it. That structure is identical between them, so it
+   lives here once and each mock supplies only its own chrome.
+
+   Two things worth knowing before editing:
+
+   1. The screen is ALWAYS dark, in both themes. Real TikTok and Shorts are
+      black behind the video, and a light-mode "phone" would look like neither.
+      The theme tokens are therefore redefined inside .phone rather than at the
+      root, which is also what lets shared builders - captions, hashtags, the
+      placeholder label - come out legible here with no special-casing in JS.
+
+   2. The width is capped. Left to fill a day strip the screen would be 500px
+      across and read as a poster; at this size it reads as a phone, which is
+      the whole point of drawing it this way.
+
+   3. There is no status bar. A clock and a battery are set dressing that says
+      nothing about the post, and a rendered time is exactly the sort of thing
+      somebody could mistake for data from the tracker.
+   ========================================================================== */
+
+.phone {
+  --phone-w: 300px;
+
+  /* Redefining the tokens is what makes every shared builder work in here. */
+  --text: #ffffff;
+  --text-dim: rgba(255, 255, 255, .82);
+  --text-faint: rgba(255, 255, 255, .64);
+  --surface: rgba(255, 255, 255, .16);
+  --surface-2: rgba(255, 255, 255, .1);
+  --surface-3: rgba(255, 255, 255, .2);
+  --border: rgba(255, 255, 255, .22);
+  --border-soft: rgba(255, 255, 255, .14);
+  --link: #7cc2ff;
+  --hash: #7cc2ff;
+  --mention: #7cc2ff;
+
+  display: flex;
+  justify-content: center;
+}
+
+.phone__screen {
+  position: relative;
+  width: 100%;
+  max-width: var(--phone-w);
+  aspect-ratio: 9 / 16;
+  border-radius: 22px;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, .32);
+  isolation: isolate;
+  font-size: 12px;
+
+  /* Nothing on a phone screen is selectable by dragging across it, and a
+     stray selection highlight across the overlays looks broken. */
+  user-select: none;
+}
+
+/* The creative, filling the display. Everything else sits above it. */
+.phone__media { position: absolute; inset: 0; z-index: 0; }
+.phone__mediahit { position: absolute; inset: 0; cursor: pointer; }
+.phone__mediahit.is-inert { cursor: default; }
+
+/* Neither platform puts a play button over a playing video. The badge is our
+   own "this one moves" marker, so it stays - but small enough to read as a
+   marker rather than as part of the creative. */
+.phone__media .ph__play { width: 44px; height: 44px; opacity: .8; }
+
+/* The format badge sits in the top corner of a placeholder, which on a phone
+   is where the app's own chrome lives. Drop it below that row so the two do
+   not sit on top of each other. */
+.phone__media .ph__badge--tl,
+.phone__media .ph__badge--tr { top: 38px; }
+
+/* mediaHTML returns whatever shape the post type calls for; in here it always
+   fills the display instead of carrying its own aspect ratio. */
+.phone__media > .ph,
+.phone__media > .phgrid,
+.phone__media > .ph-ugc { position: absolute; inset: 0; aspect-ratio: auto; }
+.phone__media .phgrid { height: 100%; }
+
+/*
+ * Legibility washes at top and bottom.
+ *
+ * The overlays are white text straight on the creative, and a pale placeholder
+ * would swallow them. Both platforms do exactly this for the same reason.
+ */
+.phone__shade {
+  position: absolute; left: 0; right: 0; z-index: 1;
+  pointer-events: none;
+}
+.phone__shade--top {
+  top: 0; height: 26%;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, .6), transparent);
+}
+.phone__shade--bottom {
+  bottom: 0; height: 46%;
+  background: linear-gradient(to top, rgba(0, 0, 0, .78), transparent);
+}
+
+/* ------------------------------- action rail ------------------------------- */
+
+.phone__rail {
+  position: absolute; right: 8px; bottom: 74px; z-index: 3;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+
+.phone__act {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  color: #fff;
+}
+.phone__act .glyph {
+  width: 25px; height: 25px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .55));
+}
+.phone__act b {
+  font-size: 10.5px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .6);
+}
+
+.phone__av {
+  width: 38px; height: 38px; border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid #fff;
+  display: block;
+}
+.phone__av--sm { width: 26px; height: 26px; border-width: 0; }
+
+/* ---------------------------- bottom-left meta ---------------------------- */
+
+.phone__meta {
+  position: absolute; left: 12px; bottom: 58px; z-index: 3;
+  /* clears the action rail */
+  width: calc(100% - 64px);
+}
+.phone__handle {
+  font-size: 13px; font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
+}
+.phone__handle[data-act="open"] { cursor: pointer; }
+.phone__handle[data-act="open"]:hover { text-decoration: underline; }
+
+.phone__cap { margin-top: 3px; }
+.phone__cap .cap {
+  font-size: 11.5px; line-height: 1.35;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
+}
+/* Two lines here rather than the card's three: the screen is short, and the
+   caption is competing with the creative behind it. */
+.phone__cap .cap--clamp { -webkit-line-clamp: 2; }
+.phone__cap .cap-more { color: rgba(255, 255, 255, .8); font-size: 11px; }
+.phone__cap .cap-more:hover { color: #fff; }
+
+/* -------------------------------- bottom nav ------------------------------- */
+
+.phone__nav {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+  display: flex; align-items: center; justify-content: space-around;
+  padding: 6px 6px 8px;
+  background: rgba(0, 0, 0, .92);
+  border-top: 1px solid rgba(255, 255, 255, .08);
+}
+.phone__navitem {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  color: rgba(255, 255, 255, .62);
+  font-size: 8.5px; font-weight: 600;
+  flex: 1 1 0; min-width: 0;
+}
+.phone__navitem .glyph { width: 17px; height: 17px; }
+.phone__navitem svg { width: 17px; height: 17px; fill: currentColor; }
+.phone__navitem span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+/* the tab you are on */
+.phone__navitem:first-child { color: #fff; }
+
+/* Narrow strips: keep the phone from squeezing its own chrome to nothing. */
+@media (max-width: 400px) {
+  .phone { --phone-w: 260px; }
+  .phone__rail { gap: 11px; bottom: 68px; }
+  .phone__act .glyph { width: 22px; height: 22px; }
+}

@@ -40,7 +40,7 @@ export function renderStats(container) {
   if (!s.shown) {
     container.innerHTML =
       `<div class="empty"><strong>Nothing matches these filters</strong>
-       Clear a filter to see the numbers again.</div>`;
+       <button class="btn btn--ghost" data-act="clear-filters">Clear filters</button></div>`;
     return;
   }
 

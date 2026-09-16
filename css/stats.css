@@ -1,8 +1,49 @@
 /* ============================================================================
    stats.css — KPI cards and the hand-built SVG charts.
-   Charts inherit theme tokens through fill="var(--...)", so a theme flip
-   re-colours every chart with no re-render.
+
+   ---------------------------------------------------------------------------
+   TYPE AND COLOUR CONVENTION
+
+   This tab is almost entirely small text and numbers, so both are on a fixed
+   scale rather than picked per component. Use the tokens; do not write a raw
+   px value or a colour into a rule below.
+
+   Size — six steps, each clearly apart from the next. The old set ran to eight
+   sizes with several only half a pixel apart, which is why nothing here looked
+   deliberate.
+
+     --st-display  32   the KPI number, the one thing read from across a desk
+     --st-figure   24   the number in the middle of a donut
+     --st-title    16   a card's title
+     --st-body     14   names, values, table cells - anything you read
+     --st-meta     12   what supports them: hints, units, axis ticks, headers
+     --st-micro    11   only where thirty labels share one axis
+
+   Colour — three roles, assigned by what the text IS, not by how it should
+   look:
+
+     --text        the figure or the name itself
+     --text-dim    everything supporting it
+     --text-faint  the genuinely absent, and nothing else
+
+   That last rule is not stylistic. --text-faint measures 3.1:1 against a light
+   surface and 4.0:1 against a dark one, both under the 4.5:1 that small text
+   needs to stay legible; --text-dim clears it comfortably in both. It was
+   being used for card hints, table headers, axis labels and the footnote -
+   most of the small text on the tab - which is what made this page hard to
+   read. It now marks one thing: a cell with nothing in it.
    ========================================================================== */
+
+#view-stats {
+  --st-display: 32px;
+  --st-figure:  24px;
+  --st-title:   16px;
+  --st-body:    14px;
+  --st-meta:    12px;
+  --st-micro:   11px;
+}
+
+/* --------------------------------- KPIs ----------------------------------- */
 
 .kpis {
   display: grid;
@@ -16,22 +57,23 @@
   border-radius: var(--radius-lg);
   padding: 16px 17px;
   box-shadow: var(--shadow-sm);
-  display: flex; flex-direction: column; gap: 3px;
+  display: flex; flex-direction: column; gap: 4px;
   min-width: 0;
 }
+/* Uppercase with tracking, so it holds its own at the smallest size here. */
 .kpi__label {
-  font-size: 12px; font-weight: 700; letter-spacing: .06em;
-  text-transform: uppercase; color: var(--text-faint);
+  font-size: var(--st-micro); font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--text-dim);
 }
 .kpi__value {
-  font-size: 30px; font-weight: 700; letter-spacing: -.025em;
+  font-size: var(--st-display); font-weight: 700; letter-spacing: -.025em;
   font-variant-numeric: tabular-nums;
-  line-height: 1.15;
+  line-height: 1.1;
   color: var(--kpi-c, var(--text));
 }
 .kpi__sub {
-  font-size: 13px; color: var(--text-dim);
-  line-height: 1.35;
+  font-size: var(--st-meta); color: var(--text-dim);
+  line-height: 1.4;
   /* These explain what the number means, so they wrap rather than truncate -
      a clipped "approved, scheduled or li..." is worse than two lines. */
   overflow-wrap: anywhere;
@@ -43,12 +85,13 @@
   /* pinned to the bottom so cards stay aligned whether their sub wrapped
      onto a second line or not */
   margin-top: auto;
-  padding-top: 0;
 }
 .kpi__bar i {
   display: block; height: 100%; border-radius: 99px;
   background: var(--kpi-c, var(--accent));
 }
+
+/* -------------------------------- cards ----------------------------------- */
 
 .charts {
   display: grid;
@@ -64,24 +107,35 @@
   min-width: 0;
 }
 .card--wide { grid-column: 1 / -1; }
-.card__head { margin-bottom: 11px; }
-.card__title { font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
-.card__hint { font-size: 13px; color: var(--text-faint); margin-top: 1px; }
+.card__head { margin-bottom: 12px; }
+.card__title {
+  font-size: var(--st-title); font-weight: 700; letter-spacing: -.01em;
+  color: var(--text);
+}
+.card__hint {
+  font-size: var(--st-meta); color: var(--text-dim);
+  line-height: 1.4; margin-top: 2px;
+}
 .card__body { min-width: 0; }
 
+/* -------------------------------- charts ---------------------------------- */
+
 .chart { display: block; width: 100%; height: auto; overflow: visible; }
-.chart text { font-size: 13px; fill: var(--text-dim); }
-.chart .t-val { fill: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
-.chart .t-mut { fill: var(--text-faint); font-size: 12px; }
-/* Every date on the per-day axis is labelled, so they run small and tight. */
-.chart .t-day { fill: var(--text-faint); font-size: 10.5px;
+.chart text { font-size: var(--st-body); fill: var(--text-dim); }
+/* the number a bar is worth */
+.chart .t-val { font-size: var(--st-body); font-weight: 700; fill: var(--text);
   font-variant-numeric: tabular-nums; }
-/* Totals above each column, and the shipped count inside the green foot. With
-   thirty columns on one axis these have to be smaller than the chart's default
-   text or they collide with their neighbours. */
-.chart .t-count { fill: var(--text); font-size: 11px; font-weight: 700;
+/* row labels and axis ticks */
+.chart .t-mut { font-size: var(--st-meta); fill: var(--text-dim); }
+/* Thirty dates share one axis, so these run at the smallest size on the tab. */
+.chart .t-day { font-size: var(--st-micro); fill: var(--text-dim);
   font-variant-numeric: tabular-nums; }
-.chart .t-inbar { fill: #06240f; font-size: 10px; font-weight: 700;
+/* the total above each column */
+.chart .t-count { font-size: var(--st-micro); font-weight: 700; fill: var(--text);
+  font-variant-numeric: tabular-nums; }
+/* Inside the green foot of a stacked bar. Fixed dark green rather than a
+   token: it sits on --st-posted in both themes, never on a page surface. */
+.chart .t-inbar { font-size: var(--st-micro); font-weight: 700; fill: #06240f;
   font-variant-numeric: tabular-nums; }
 .chart .grid  { stroke: var(--border-soft); stroke-width: 1; }
 .chart .track { fill: var(--surface-2); }
@@ -89,40 +143,47 @@
 .donutwrap { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .donutwrap .chart { width: 172px; flex: 0 0 auto; }
 .donut__hole {
-  font-size: 26px; font-weight: 700; fill: var(--text);
+  font-size: var(--st-figure); font-weight: 700; fill: var(--text);
   font-variant-numeric: tabular-nums;
 }
-.donut__sub { font-size: 12px; fill: var(--text-faint); }
+.donut__sub { font-size: var(--st-meta); fill: var(--text-dim); }
+
+/* -------------------------------- legend ---------------------------------- */
 
 .legend {
-  display: flex; flex-direction: column; gap: 7px;
+  display: flex; flex-direction: column; gap: 8px;
   min-width: 150px; flex: 1;
-  font-size: 13.5px;
+  font-size: var(--st-body);
 }
-.legend__row { display: flex; align-items: center; gap: 7px; }
+.legend__row { display: flex; align-items: center; gap: 8px; }
 .legend__sw { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; }
 .legend__name {
-  color: var(--text-dim);
+  color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .legend__n {
-  margin-left: auto; font-weight: 700;
+  margin-left: auto; font-weight: 700; color: var(--text);
   font-variant-numeric: tabular-nums;
 }
-.legend__pct { color: var(--text-faint); font-size: 12.5px; min-width: 40px; text-align: right; }
+.legend__pct {
+  font-size: var(--st-meta); color: var(--text-dim);
+  min-width: 40px; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
 
-/* brand x platform heat grid */
-.matrix { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+/* --------------------------- brand x platform ----------------------------- */
+
+.matrix { width: 100%; border-collapse: collapse; font-size: var(--st-body); }
 .matrix th, .matrix td {
   padding: 9px 10px; text-align: center;
   border-bottom: 1px solid var(--border-soft);
 }
 .matrix th {
-  font-size: 12px; font-weight: 700; letter-spacing: .04em;
-  text-transform: uppercase; color: var(--text-faint);
+  font-size: var(--st-micro); font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-dim);
 }
 .matrix th:first-child, .matrix td:first-child { text-align: left; }
-.matrix td:first-child { font-weight: 600; white-space: nowrap; }
+.matrix td:first-child { font-weight: 600; white-space: nowrap; color: var(--text); }
 .matrix__hd { display: inline-flex; align-items: center; gap: 5px; justify-content: center; }
 .matrix__hd img { width: 17px; height: 17px; border-radius: 50%; }
 .matrix__n {
@@ -133,32 +194,37 @@
   background: color-mix(in srgb, var(--accent) calc(var(--w, 0) * 1%), var(--surface-2));
   color: var(--text);
 }
+/* the one place --text-faint belongs: a channel a brand does not cover */
 .matrix__n--zero { color: var(--text-faint); font-weight: 500; background: none; }
-.matrix__tot { color: var(--text-dim); font-weight: 700; }
+.matrix__tot { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
 
-.readiness { display: flex; flex-direction: column; gap: 12px; }
+/* ------------------------------ readiness --------------------------------- */
+
+.readiness { display: flex; flex-direction: column; gap: 13px; }
 .readiness__row { display: flex; flex-direction: column; gap: 5px; }
 .readiness__top {
   display: flex; align-items: baseline; gap: 8px;
-  font-size: 14px;
+  font-size: var(--st-body);
 }
-.readiness__name { font-weight: 600; }
+.readiness__name { font-weight: 600; color: var(--text); }
 .readiness__n {
-  margin-left: auto; font-size: 13px; color: var(--text-faint);
+  margin-left: auto; font-size: var(--st-meta); color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
 .readiness__bar { height: 9px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
 .readiness__bar i { display: block; height: 100%; border-radius: 99px; background: var(--c, var(--accent)); }
 
 .statgrid-note {
-  margin-top: 16px; font-size: 13px; color: var(--text-faint);
+  margin-top: 16px;
+  font-size: var(--st-meta); color: var(--text-dim);
+  line-height: 1.5;
   display: flex; align-items: flex-start; gap: 7px;
 }
 
 @media (max-width: 620px) {
+  #view-stats { --st-display: 26px; --st-figure: 22px; }
   .kpis { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 9px; }
-  .kpi__value { font-size: 25px; }
   .charts { grid-template-columns: 1fr; }
-  .card { padding: 12px; }
+  .card { padding: 13px; }
   .matrix { display: block; overflow-x: auto; white-space: nowrap; }
 }
