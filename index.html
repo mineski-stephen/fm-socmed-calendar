@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Social Media Calendar — FUNalo MAX</title>
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="img/profile_funalomax.png">
+<link rel="preload" href="font/HelveticaNeue-Roman.otf" as="font" type="font/otf" crossorigin>
+<link rel="preload" href="font/HelveticaNeue-Medium.otf" as="font" type="font/otf" crossorigin>
+
+<!-- Order matters only for the first two: tokens define the variables everything else reads. -->
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/shell.css">
+<link rel="stylesheet" href="css/controls.css">
+<link rel="stylesheet" href="css/calendar.css">
+<link rel="stylesheet" href="css/dayview.css">
+<link rel="stylesheet" href="css/post-card.css">
+<link rel="stylesheet" href="css/media.css">
+<link rel="stylesheet" href="css/mock-facebook.css">
+<link rel="stylesheet" href="css/mock-instagram.css">
+<link rel="stylesheet" href="css/mock-x.css">
+<link rel="stylesheet" href="css/stats.css">
+<link rel="stylesheet" href="css/states.css">
+</head>
+<body>
+
+<div class="loader" id="loader">
+  <img class="loader__mark" src="img/profile_funalomax.png" alt="">
+  <div class="loader__ring" role="status" aria-label="Loading"></div>
+  <p class="loader__label">Loading the tracker&hellip;</p>
+</div>
+
+<header class="appbar">
+  <div class="appbar__brand">
+    <img class="appbar__logo" src="img/profile_funalomax.png" alt="">
+    <div class="appbar__titles">
+      <h1 class="appbar__title">Social Media Calendar</h1>
+      <p class="appbar__sync" id="sync-label">Loading&hellip;</p>
+    </div>
+  </div>
+
+  <div class="appbar__actions">
+    <div class="refresh">
+      <button class="btn btn--icon" id="btn-refresh" data-act="refresh"
+              title="Re-read the sheet now (R)" aria-label="Refresh data">
+        <svg class="icon icon--spin-target" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20 11a8 8 0 1 0-.6 3" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round"/>
+          <path d="M20 4v7h-7" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="btn__label">Refresh</span>
+        <span class="refresh-dot" id="refresh-dot" hidden></span>
+      </button>
+
+      <label class="autochk" title="Re-read the sheet every minute">
+        <input type="checkbox" id="chk-auto" data-act="toggle-auto" checked>
+        <span class="autochk__box" aria-hidden="true"></span>
+        <span class="autochk__label">Auto</span>
+      </label>
+    </div>
+
+    <div class="seg" role="group" aria-label="Post rendering mode">
+      <button class="seg__btn" data-act="set-mode" data-mode="simple">Simple</button>
+      <button class="seg__btn" data-act="set-mode" data-mode="layout">Layout</button>
+    </div>
+
+    <div class="seg seg--icons" role="group" aria-label="Colour theme">
+      <button class="seg__btn" data-act="set-theme" data-theme="light" title="Light" aria-label="Light theme">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.2" fill="currentColor"/>
+          <g stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+            <path d="M12 2.4v2.3M12 19.3v2.3M2.4 12h2.3M19.3 12h2.3"/>
+            <path d="M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+          </g>
+        </svg>
+      </button>
+      <button class="seg__btn" data-act="set-theme" data-theme="system" title="Match system" aria-label="Match system theme">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="2.8" y="4.2" width="18.4" height="12.6" rx="2" fill="none"
+                stroke="currentColor" stroke-width="1.9"/>
+          <path d="M8.5 20.2h7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <button class="seg__btn" data-act="set-theme" data-theme="dark" title="Dark" aria-label="Dark theme">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.7 8.7 0 1 0 11.1 11.1Z" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Views">
+  <button class="tab" role="tab" data-act="set-view" data-view="calendar">Calendar</button>
+  <button class="tab" role="tab" data-act="set-view" data-view="day">Day view</button>
+  <button class="tab" role="tab" data-act="set-view" data-view="stats">Stats</button>
+</nav>
+
+<!-- Raised when the sheet has postings whose date went by without ever being
+     marked Posted. Sits above the filter bar so it is present on every tab. -->
+<div class="alertbar" id="alertbar" hidden></div>
+
+<div class="filterbar" id="filterbar" hidden></div>
+
+<main class="main" id="main">
+  <section class="view" id="view-calendar" role="tabpanel" aria-label="Calendar"></section>
+  <section class="view" id="view-day" role="tabpanel" aria-label="Day view"></section>
+  <section class="view" id="view-stats" role="tabpanel" aria-label="Stats"></section>
+  <div class="statuspane" id="statuspane" hidden></div>
+</main>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<noscript>
+  <div class="bootmsg">
+    <h2>JavaScript is required</h2>
+    <p>This page builds the calendar in the browser from a live Google Sheet, so it needs
+       JavaScript enabled.</p>
+  </div>
+</noscript>
+
+<!--
+  Boot guard - deliberately a CLASSIC inline script, not a module.
+
+  Browsers refuse to load ES modules over file://, so js/main.js would never
+  run and the page would sit blank forever. This runs regardless, explains what
+  went wrong, and also acts as a watchdog if the modules fail for any other
+  reason (a missing file, a bad deploy, a blocked script).
+-->
+<script>
+(function () {
+  var served = location.protocol === 'http:' || location.protocol === 'https:';
+
+  function panel(html) {
+    document.documentElement.setAttribute('data-boot-error', '1');
+    var d = document.createElement('div');
+    d.className = 'bootmsg';
+    d.innerHTML = html;
+    document.body.appendChild(d);
+  }
+
+  var SERVE_FIX =
+    '<p>Run a small local server from this folder instead:</p>' +
+    '<pre>python -m http.server 8000</pre>' +
+    '<p>then open <a href="http://localhost:8000">http://localhost:8000</a>. ' +
+    'Any real host - GitHub Pages, Netlify, an internal server - works too.</p>';
+
+  if (!served) {
+    panel(
+      '<h2>This page needs to be served over HTTP</h2>' +
+      '<p>It is open as <code>' + location.protocol + '</code> rather than from a web ' +
+      'server. Two things break in that mode: the browser blocks ES modules, and ' +
+      'Google refuses the cross-origin request for the sheet because the page has no ' +
+      'real origin.</p>' + SERVE_FIX);
+    return;
+  }
+
+  // Watchdog: if boot() never runs, say so instead of showing "Loading..." forever.
+  window.setTimeout(function () {
+    if (window.__fmcalBooted) return;
+    panel(
+      '<h2>The page did not finish loading</h2>' +
+      '<p>The scripts under <code>js/</code> did not start. That usually means a file ' +
+      'is missing or was not uploaded - open the browser console to see which one.</p>' +
+      '<p>If you just edited the files, force a reload with ' +
+      '<code>Ctrl</code>+<code>Shift</code>+<code>R</code> to clear the cached copy.</p>');
+  }, 8000);
+})();
+</script>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
