@@ -499,9 +499,6 @@ export function setCarousel(el, index, store) {
   if (prev) prev.disabled = i === 0;
   if (next) next.disabled = i === n - 1;
 
-  const dots = el.parentElement?.querySelectorAll('.igcar__dot') || [];
-  dots.forEach((d, k) => d.setAttribute('aria-current', String(k === i)));
-
   if (store) store.set(el.dataset.carousel, i);
   return i;
 }

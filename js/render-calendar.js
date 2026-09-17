@@ -10,7 +10,7 @@ import { DAY_ABBR, MONTH_ABBR } from './config.js';
 import { escapeHtml } from './utils.js';
 import { calendarMatrix, monthLabel, todayKey } from './dates.js';
 import { state } from './state.js';
-import { getByDay, brandChipsFor, isOverdue } from './selectors.js';
+import { getByDay, brandChipsFor, isOverdue, countPosts } from './selectors.js';
 import { brandMeta, platformMeta } from './data.js';
 import { emptyViewHTML } from './render-shell.js';
 import { platformMark } from './render-post.js';
@@ -117,12 +117,15 @@ export function renderCalendar(container) {
     const out = el.classList.contains('cell--out');
 
     el.querySelector('[data-chips]').innerHTML = out ? '' : chipsHTML(posts);
+    // Posts, not rows, matching the chips below it: a crosspost shows a chip
+    // under each platform, so the cell total has to count it the same way.
+    const n = out ? 0 : countPosts(posts);
     const total = el.querySelector('[data-total]');
-    total.textContent = posts.length && !out ? posts.length : '';
+    total.textContent = n || '';
 
     // A day in the past still carrying unposted work gets flagged on the grid
     // itself, so the backlog is visible without opening anything.
-    const late = out ? 0 : posts.filter(isOverdue).length;
+    const late = out ? 0 : countPosts(posts.filter(isOverdue));
     el.classList.toggle('cell--overdue', late > 0);
     el.title = late ? `${late} post${late === 1 ? '' : 's'} past due` : '';
     el.classList.toggle('cell--selected', key === state.selectedDayKey);

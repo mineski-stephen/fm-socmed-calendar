@@ -7,7 +7,7 @@ import { CSV_URL, PLATFORM_ORDER, TYPE_ORDER, STATUS_ORDER } from './config.js';
 import { escapeHtml, orderedEntries } from './utils.js';
 import { sinceLabel, todayKey } from './dates.js';
 import { state, hasActiveFilters, FILTER_FIELDS } from './state.js';
-import { getFiltered, getOverdue, getUpcoming } from './selectors.js';
+import { getFiltered, getOverdue, getUpcoming, countPosts, countAll } from './selectors.js';
 import { brandMeta, platformMeta, typeMeta, statusMeta } from './data.js';
 
 const $id = (id) => document.getElementById(id);
@@ -46,7 +46,7 @@ export function syncSyncLabel() {
   // reassurance that it is current rather than a warning that it is not.
   el.innerHTML = state.refreshing
     ? 'Checking the sheet\u2026'
-    : `<b>${state.posts.length}</b> posts \u00b7 synced ${escapeHtml(sinceLabel(state.syncedAt))}`;
+    : `<b>${countAll(state.posts)}</b> posts \u00b7 synced ${escapeHtml(sinceLabel(state.syncedAt))}`;
 
   if (btn) {
     btn.classList.toggle('is-busy', state.refreshing);
@@ -138,8 +138,8 @@ export function renderAlert() {
 
   const cards = [];
 
-  if (noticeLive(overdue.length, state.alertAckCount, state.alertSnoozeUntil)) {
-    const n = overdue.length;
+  if (noticeLive(countAll(overdue), state.alertAckCount, state.alertSnoozeUntil)) {
+    const n = countAll(overdue);
     const days = Math.max(1, dayGap(overdue[0].dateKey, todayKey()));
     cards.push(noticeHTML({
       kind: 'late',
@@ -154,8 +154,8 @@ export function renderAlert() {
     }));
   }
 
-  if (noticeLive(upcoming.length, state.upcomingAckCount, state.upcomingSnoozeUntil)) {
-    const n = upcoming.length;
+  if (noticeLive(countAll(upcoming), state.upcomingAckCount, state.upcomingSnoozeUntil)) {
+    const n = countAll(upcoming);
     const next = upcoming[0];
     const gap = dayGap(todayKey(), next.dateKey);
     // "at 12:00 AM" on a row nobody actually set a time on would be noise, so
@@ -336,8 +336,9 @@ export function renderFilterBar() {
     ? `<img class="fchip__logo" src="${m.icon}" alt="">`
     : dot(m.hue));
 
-  const shown = getFiltered().length;
-  const overdueCount = getOverdue().length;
+  // Posts, not rows, on both sides of "showing N of M" - see selectors.js.
+  const shown = countPosts(getFiltered());
+  const overdueCount = countAll(getOverdue());
   const active = FILTER_FIELDS.reduce((n, k) => n + state.filters[k].size, 0)
     + (state.filters.overdueOnly ? 1 : 0);
 
@@ -365,7 +366,7 @@ export function renderFilterBar() {
           aria-pressed="${state.filters.overdueOnly}"
           title="Only show postings whose date has passed without being marked Posted">
           \u26a0 Past due<span class="fchip__n">${overdueCount}</span></button>` : ''}
-      <span class="filterbar__count">showing <b>${shown}</b> of ${state.posts.length}</span>
+      <span class="filterbar__count">showing <b>${shown}</b> of ${countAll(state.posts)}</span>
       ${hasActiveFilters()
         ? '<button class="btn btn--ghost" data-act="clear-filters">Clear all</button>' : ''}
     </div>`;

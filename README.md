@@ -118,6 +118,35 @@ filename (`.gif` implies an animated post, `.mp4` a video, `.jpg`/`.png` a stati
 to pick a sensible placeholder. The chip still reads `Unspecified`, with a "looks like ..."
 hint, so the guess never masks the missing value.
 
+### What counts as one post
+
+**A row that goes out on several platforms counts as several posts.** One tracker row with
+`Facebook, Instagram` in its Platform cell is two posts: two pieces of creative in two feeds,
+two things that have to go right, two lines of work. A row crossposted to three platforms is
+three.
+
+This is the unit **every** number on the page uses - the app bar, `showing N of M`, the count
+on a day strip, the number in a calendar cell, the filter-menu counts, both notifications and
+every figure and chart on the Stats tab. The views already worked this way, since a crosspost
+has always been *drawn* once per platform; before this the totals alone still counted rows,
+which is how a day could show two cards under a header reading "1 post".
+
+Two consequences worth knowing:
+
+- **The post count is larger than the number of rows in your sheet.** 56 rows with 20
+  crossposts make 76 posts. The `Crossposts` card on the Stats tab names both figures so the
+  difference is never a mystery.
+- **Filtering to one platform counts only that platform's half.** With the Platform filter set
+  to Instagram, a Facebook+Instagram row is one post, not two - it is counted the way it is
+  drawn.
+
+Two figures stay deliberately in rows, and say so: the `Crossposts` card, which exists to
+explain the gap, and `Incomplete rows`, which counts sheet cells somebody has to fill in.
+
+In the code this lives in `js/selectors.js` as `countPosts` (filter-aware) and `countAll`
+(ignores the platform filter, for the "of M" denominator and the notifications). If you add a
+count anywhere, use one of those rather than `.length`.
+
 ---
 
 ## Brands, platforms, formats and statuses
@@ -174,12 +203,19 @@ module and register it in `js/mocks.js`.
 | `Dynamic/Moving` | animated gradient with a `GIF` badge |
 | `Album/Carousels` | four blocks, a 2x2 collage on Facebook and a swipeable carousel on Instagram |
 | `KOL/UGC Shares` | a quoted creator card, so it reads as someone else's post being amplified |
-| `Story` | 9:16 block with story progress segments |
+| `Story` | 9:16 block with story progress segments; a play badge only when the asset is a clip |
 | `Text Only` | no media |
 | `Link Share` | wide link-preview block |
 
 Video formats fill the card width rather than sitting in a narrow 9:16 column with dead space
 beside them. The play badge and the motion are what say "this one moves".
+
+A **Story is the exception**: it is a still photo about as often as it is a clip, so it earns
+the play badge and the sheen only when the `Files` cell names a video (`.mp4`, `.mov`,
+`.webm`, `.avi`). That cell is the only place the sheet ever states a file type - the Drive
+listing is bare URLs, and a Drive thumbnail looks identical whether it was made from a photo
+or from a video - so this is positive evidence or nothing, and a Story with no filename is
+drawn as a still. Write the filename into `Files` and the badge comes back.
 
 ### Statuses
 
@@ -567,20 +603,26 @@ mode over thirty days stays instant.
 
 ### Stats
 
-Every number respects the active filters.
+Every number respects the active filters, and every number counts **posts, not sheet rows** -
+see [What counts as one post](#what-counts-as-one-post).
 
 **KPI cards**
 
 | Card | Meaning |
 |---|---|
-| Posts in view | Rows matching the current filters, against the tracker total |
+| Posts in view | Posts matching the current filters, against the tracker total |
 | Posted | How many are `Posted`, and what share of the selection that is |
-| Needs action | Rows still marked `Needs Action` |
+| Needs action | Posts still marked `Needs Action` |
 | Days with content | Distinct dates that have at least one post, plus the average per active day |
 | Busiest day | The highest single-day count, and which day |
 | Date range | First and last posting date in the selection |
-| Past due | Rows whose date has gone by while still not marked `Posted` |
-| Incomplete rows | Rows missing a Platform or a Type of Post |
+| Past due | Posts whose date has gone by while still not marked `Posted` |
+| Crossposts | How many **rows** go out on more than one platform, and the row-to-post gap they account for |
+| Incomplete rows | **Rows** missing a Platform or a Type of Post |
+
+`Crossposts` and `Incomplete rows` are the two cards that deliberately count rows: the first
+exists to explain why the post count is bigger than the sheet, and the second names cells
+somebody has to go and fill in.
 
 **Charts**
 
@@ -598,8 +640,10 @@ Every number respects the active filters.
   is seven of eleven shipped. A bare total says how much work there is but nothing about how
   much of it is done, which is the question this grid is usually being asked. An empty cell is
   a channel that brand is not covering.
-- **Content readiness** — the share of rows that have a caption, an asset link and a live post
-  link. This is the panel that tells the team what is still outstanding.
+- **Content readiness** — the share of posts that have a caption, an asset link and a live
+  post link. This is the panel that tells the team what is still outstanding. A crosspost with
+  no caption counts as two posts with no caption, because it is two things that go out
+  unwritten.
 
 Charts are hand-built inline SVG with no charting library, which is also why they re-colour
 instantly when the theme changes.
@@ -714,7 +758,7 @@ glyphs keep their counts, rather than letting the row cram together. The three r
 bubbles are drawn from Facebook's own set.
 
 **Instagram** — gradient-ringed avatar and handle top-left, hamburger top-right; 4:5 media;
-carousels get a `1/4` counter, dot indicators, arrows and swipe; action row of like, comment,
+carousels get a `1/4` counter, arrows and swipe; action row of like, comment,
 repost and share with a bookmark pushed to the right edge; handle in bold followed by the
 caption; date and time underneath.
 
@@ -964,8 +1008,13 @@ list them all.
 month arrows, or `Today`.
 
 **The same post appears twice in a day** - it is a crosspost, going out on two platforms. Each
-copy is labelled `crosspost` in its header and names the other platform on hover. Filtering to
-one platform shows only that copy.
+copy is labelled `crosspost` in its header and names the other platform on hover, and each
+counts as its own post. Filtering to one platform shows only that copy, and counts only it.
+
+**The post count is higher than the number of rows in the sheet** - that is a crosspost row
+counting once per platform, which is what it is worth. See
+[What counts as one post](#what-counts-as-one-post); the `Crossposts` card on the Stats tab
+names both figures.
 
 **A caption will not copy** - clipboard access needs a secure context. `https://` and
 `localhost` both qualify; a plain `http://` internal host does not, and the page falls back to

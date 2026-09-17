@@ -89,6 +89,40 @@ export function visiblePlatforms(post) {
   return post.platformKeys.filter((k) => f.platforms.has(k));
 }
 
+/* ---------------------------------------------------------------------------
+   COUNTING
+
+   A crosspost is one row in the tracker and several postings in the world: a
+   row going out on Facebook and Instagram is two posts, drawn as two cards,
+   landing in two feeds, needing two things to go right.
+
+   So the unit every number on this page counts is the PLACEMENT - one post on
+   one platform - not the sheet row. The views already worked this way, since
+   expandByPlatform draws a crosspost once per platform; it was only the
+   totals that still said 1, which is why a day could show two cards under a
+   header reading "1 post".
+
+   Two flavours, and the difference matters:
+
+     countPosts    respects the platform filter, because it counts what is on
+                   screen. Filtered to Instagram, a Facebook+Instagram row is
+                   one post, not two.
+     countAll      ignores it. For the "of 76" denominator and for the
+                   notices, which deliberately speak about the whole tracker.
+   ------------------------------------------------------------------------- */
+
+/** How many postings a row is worth, whatever the filters say. */
+export const placementsOf = (post) => post.platformKeys.length;
+
+/** The same, narrowed to the platforms a filter leaves on screen. */
+export const shownPlacementsOf = (post) => visiblePlatforms(post).length;
+
+/** Postings in a list, counting only what the platform filter leaves. */
+export const countPosts = (list) => list.reduce((n, p) => n + shownPlacementsOf(p), 0);
+
+/** Postings in a list, ignoring the platform filter entirely. */
+export const countAll = (list) => list.reduce((n, p) => n + placementsOf(p), 0);
+
 /** Flatten posts into one entry per visible platform, in display order. */
 export function expandByPlatform(posts) {
   const rank = new Map(PLATFORM_ORDER.map((k, i) => [k, i]));
@@ -150,7 +184,8 @@ export function brandChipsFor(posts) {
     }
     out.push({
       brandKey,
-      total: list.length,
+      // Placements, so the group total agrees with the chips beside it.
+      total: countPosts(list),
       platforms: orderedEntries(byPlatform, PLATFORM_ORDER)
         .map(([platformKey, count]) => ({ platformKey, count })),
     });
@@ -161,11 +196,23 @@ export function brandChipsFor(posts) {
 
 /* --------------------------------- stats ---------------------------------- */
 
+/*
+ * Every breakdown is weighted by placements, so a Facebook+Instagram row adds
+ * two to its brand, its type, its status and its day - the same two it already
+ * adds to the platform mix. Any other weighting and the charts on this tab
+ * would disagree with each other about the same row.
+ */
 const tally = (list, keyFn) => {
   const m = new Map();
-  for (const p of list) { const k = keyFn(p); m.set(k, (m.get(k) || 0) + 1); }
+  for (const p of list) {
+    const k = keyFn(p);
+    m.set(k, (m.get(k) || 0) + shownPlacementsOf(p));
+  }
   return m;
 };
+
+/** Postings in `list` that satisfy `test`, counted the same way. */
+const countWhere = (list, test) => countPosts(list.filter(test));
 
 export function getStats() {
   fresh();
@@ -179,8 +226,6 @@ export function getStats() {
   const byStatus = tally(shown, (p) => p.statusKey);
   const byDate = tally(shown, (p) => p.dateKey);
 
-  // A crosspost counts once per platform here, so these totals can exceed the
-  // row count. That is the honest answer to "how many Instagram posts?".
   const byPlatform = new Map();
   const matrix = new Map();
   // Shipped placements, counted the same way, so a cell can read "7 of 11"
@@ -199,8 +244,11 @@ export function getStats() {
       placements += 1;
     }
   }
-  const crossposts = shown.filter((p) => visiblePlatforms(p).length > 1).length;
-  const overdue = shown.filter(isOverdue).length;
+  // How many ROWS are crossposts - the one figure on this tab that is
+  // deliberately about sheet rows, since it exists to explain the gap between
+  // the row count and the post count.
+  const crossposts = shown.filter((p) => shownPlacementsOf(p) > 1).length;
+  const overdue = countWhere(shown, isOverdue);
 
   const dates = Array.from(byDate.keys()).sort();
   const posted = byStatus.get('posted') || 0;
@@ -212,10 +260,13 @@ export function getStats() {
   let busiest = { key: '', n: 0 };
   for (const [k, n] of byDate) if (n > busiest.n) busiest = { key: k, n };
 
-  // Content readiness — which rows the team still has to fill in.
-  const withCaption = shown.filter((p) => p.hasCaption).length;
-  const withAsset = shown.filter((p) => p.filesUrl).length;
-  const withLink = shown.filter((p) => p.postLink).length;
+  // Content readiness — what the team still has to fill in. Counted in posts
+  // like everything else: a crosspost with no caption is two posts with no
+  // caption, because it is two things that go out unwritten.
+  const withCaption = countWhere(shown, (p) => p.hasCaption);
+  const withAsset = countWhere(shown, (p) => p.filesUrl);
+  const withLink = countWhere(shown, (p) => p.postLink);
+  // Rows, not posts: this one names sheet cells somebody has to go and fill.
   const incomplete = shown.filter((p) => p.incomplete).length;
 
   const mk = monthKeyOfState();
@@ -225,7 +276,7 @@ export function getStats() {
   const postedByDate = new Map();
   for (const p of shown) {
     if (p.statusKey !== 'posted') continue;
-    postedByDate.set(p.dateKey, (postedByDate.get(p.dateKey) || 0) + 1);
+    postedByDate.set(p.dateKey, (postedByDate.get(p.dateKey) || 0) + shownPlacementsOf(p));
   }
   const perDay = monthKeys.map((k) => {
     const n = byDate.get(k) || 0;
@@ -234,21 +285,17 @@ export function getStats() {
   });
 
   const stats = {
-    total: all.length,
-    shown: shown.length,
-    placements,
+    /*
+     * Posts, meaning placements. `rows` and `rowsShown` are the tracker's own
+     * row counts, kept for the two figures that are honestly about rows.
+     */
+    total: countAll(all),
+    shown: placements,
+    rows: all.length,
+    rowsShown: shown.length,
     crossposts,
     overdue,
     byBrand,
-    byBrandPlacements: (() => {
-      const m = new Map();
-      for (const [bk, row] of matrix) {
-        let n = 0;
-        for (const v of row.values()) n += v;
-        m.set(bk, n);
-      }
-      return m;
-    })(),
     byPlatform: orderedEntries(byPlatform, PLATFORM_ORDER),
     byType: orderedEntries(byType, TYPE_ORDER),
     byStatus: orderedEntries(byStatus, STATUS_ORDER),
@@ -260,17 +307,17 @@ export function getStats() {
     posted,
     needs,
     settled,
-    settledPct: shown.length ? Math.round((settled / shown.length) * 100) : 0,
-    postedPct: shown.length ? Math.round((posted / shown.length) * 100) : 0,
+    settledPct: placements ? Math.round((settled / placements) * 100) : 0,
+    postedPct: placements ? Math.round((posted / placements) * 100) : 0,
     daysWithContent: dates.length,
-    avgPerDay: dates.length ? (shown.length / dates.length) : 0,
+    avgPerDay: dates.length ? (placements / dates.length) : 0,
     busiest,
     firstDate: dates[0] || '',
     lastDate: dates[dates.length - 1] || '',
     readiness: [
-      { label: 'Has a caption',   n: withCaption, of: shown.length, hue: 'var(--accent)' },
-      { label: 'Has an asset link', n: withAsset, of: shown.length, hue: 'var(--pf-instagram)' },
-      { label: 'Has a live post link', n: withLink, of: shown.length, hue: 'var(--st-posted)' },
+      { label: 'Has a caption',   n: withCaption, of: placements, hue: 'var(--accent)' },
+      { label: 'Has an asset link', n: withAsset, of: placements, hue: 'var(--pf-instagram)' },
+      { label: 'Has a live post link', n: withLink, of: placements, hue: 'var(--st-posted)' },
     ],
     incomplete,
     today: todayKey(),

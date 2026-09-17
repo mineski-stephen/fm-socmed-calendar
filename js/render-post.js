@@ -269,11 +269,21 @@ export function mediaHTML(post, { aspect = 'ph--1x1', tiles = 0 } = {}) {
       `<span class="ph__bar"><i></i></span>`, first);
   }
 
+  /*
+   * A Story is the one format that is a photo about as often as it is a clip,
+   * so it only gets the "this moves" treatment - the play badge and the light
+   * sweep - when the sheet actually names a video file. Both say the same
+   * thing, so they appear and disappear together; a still Story keeps its
+   * segment bars and its badge and is simply drawn as the still it is.
+   */
   if (kind === 'story') {
-    return phBlock(post, `${aspect} ph--video ph--story`,
+    const moving = post.videoFile;
+    return phBlock(post, `${aspect}${moving ? ' ph--video' : ''} ph--story`,
       `<span class="ph__segs"><i></i><i></i><i></i></span>` +
-      `<span class="ph__sheen"></span>` +
-      `<img class="ph__play" src="${PLAY_BADGE}" alt="">` +
+      (moving
+        ? `<span class="ph__sheen"></span>` +
+          `<img class="ph__play" src="${PLAY_BADGE}" alt="">`
+        : '') +
       `<span class="ph__badge ph__badge--tr">STORY</span>`, first);
   }
 

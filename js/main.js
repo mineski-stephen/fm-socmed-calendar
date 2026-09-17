@@ -26,7 +26,9 @@ import {
 } from './render-dayview.js';
 import { renderStats } from './render-stats.js';
 import { initDayRail, bindCarousels, setCarousel } from './interactions.js';
-import { getOverdue, getUpcoming, expandByPlatform, getByDay } from './selectors.js';
+import {
+  getOverdue, getUpcoming, expandByPlatform, getByDay, countAll,
+} from './selectors.js';
 import * as lightbox from './lightbox.js';
 import { entryKey, captionKey } from './render-post.js';
 import { syncCaptionMore, recheckCaptionsOnFontLoad } from './captions.js';
@@ -249,7 +251,7 @@ async function refresh({ quiet = false } = {}) {
       // Nothing moved in the sheet. Just bump the clock.
       state.syncedAt = Date.now();
       syncSyncLabel();
-      if (!quiet) toast('Already up to date', `${posts.length} posts, nothing changed.`, 'ok', 2600);
+      if (!quiet) toast('Already up to date', `${countAll(posts)} posts, nothing changed.`, 'ok', 2600);
       return;
     }
 
@@ -264,7 +266,7 @@ async function refresh({ quiet = false } = {}) {
     if (r) r.scrollLeft = keepScroll;
 
     toast(quiet ? 'Tracker updated' : 'Tracker refreshed',
-      `${posts.length} posts loaded.`, 'ok', 3500);
+      `${countAll(posts)} posts loaded.`, 'ok', 3500);
   } catch (err) {
     state.refreshing = false;
     syncSyncLabel();
@@ -343,7 +345,7 @@ const ACTIONS = {
 
     for (const f of FILTER_FIELDS) state.filters[f].clear();
     state.filters.overdueOnly = true;
-    state.alertAckCount = late.length;
+    state.alertAckCount = countAll(late);
     state.alertSnoozeUntil = 0;   // reviewed, not postponed
 
     const first = late[0];
@@ -404,7 +406,7 @@ const ACTIONS = {
 
     for (const f of FILTER_FIELDS) state.filters[f].clear();
     state.filters.overdueOnly = false;
-    state.upcomingAckCount = soon.length;
+    state.upcomingAckCount = countAll(soon);
     state.upcomingSnoozeUntil = 0;
 
     const first = soon[0];
@@ -428,14 +430,14 @@ const ACTIONS = {
    * quietly turn a real backlog into nobody's problem.
    */
   'dismiss-alert'() {
-    state.alertAckCount = getOverdue().length;
+    state.alertAckCount = countAll(getOverdue());
     state.alertSnoozeUntil = Date.now() + ALERT_SNOOZE_MS;
     renderAlert();
     armSnooze();
   },
 
   'dismiss-upcoming'() {
-    state.upcomingAckCount = getUpcoming().length;
+    state.upcomingAckCount = countAll(getUpcoming());
     state.upcomingSnoozeUntil = Date.now() + ALERT_SNOOZE_MS;
     renderAlert();
     armSnooze();
@@ -511,12 +513,6 @@ const ACTIONS = {
 
     if (el.dataset.scope === lightbox.SCOPE) lightbox.rerender();
     else scheduleRender(SCOPE.VIEW);
-  },
-
-  'carousel-dot'(el) {
-    const car = el.closest('.mock-ig, .strip, .view')?.querySelector(
-      `.igcar[data-carousel="${CSS.escape(el.dataset.post)}"]`);
-    if (car) setCarousel(car, +el.dataset.i, state.carousels);
   },
 
   'carousel-nav'(el) {

@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drive image probe — FUNalo MAX</title>
+<link rel="icon" href="img/profile_funalomax.png">
+
+<!--
+  A throwaway diagnostic, not part of the site.
+
+  Nothing in index.html links here and nothing here is imported by the app, so
+  deleting this one file removes it completely. It borrows two stylesheets and
+  the CSV parser from the app rather than carrying copies, because a second
+  copy of a CSV parser is exactly the thing that drifts.
+
+  What it answers: for the Drive links actually in the tracker right now, does
+  a plain <img> in a static page render the asset, and which endpoint does it.
+-->
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/tokens.css">
+
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 26px 22px 70px;
+    background: var(--bg); color: var(--text);
+    font: 400 14px/1.5 "Inter Variable", Inter, system-ui, sans-serif;
+    font-optical-sizing: auto;
+  }
+  h1 { font-size: 21px; margin: 0 0 4px; letter-spacing: -.02em; }
+  h2 { font-size: 15px; margin: 26px 0 10px; letter-spacing: -.01em; }
+  .sub { color: var(--text-dim); font-size: 13px; margin: 0 0 18px; max-width: 78ch; }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 14px;
+  }
+  .warn { border-color: color-mix(in srgb, var(--warn) 50%, var(--border));
+          background: color-mix(in srgb, var(--warn) 8%, var(--surface)); }
+
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  button {
+    font: inherit; font-weight: 600; font-size: 13px;
+    padding: 7px 14px; border-radius: 8px; cursor: pointer;
+    background: var(--accent); color: var(--on-accent); border: 0;
+  }
+  button.ghost { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+  button[disabled] { opacity: .5; cursor: default; }
+  input[type=text] {
+    font: inherit; font-size: 13px; padding: 7px 10px;
+    border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg-elev); color: var(--text); min-width: 320px; flex: 1;
+  }
+
+  /* verdict */
+  .verdict { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+  .stat {
+    background: var(--surface-2); border: 1px solid var(--border-soft);
+    border-radius: 10px; padding: 10px 14px; min-width: 132px;
+  }
+  .stat b { display: block; font-size: 24px; font-weight: 700; letter-spacing: -.02em;
+            font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 11px; font-weight: 700; letter-spacing: .06em;
+               text-transform: uppercase; color: var(--text-dim); }
+  .stat--ok b   { color: var(--st-posted); }
+  .stat--bad b  { color: var(--danger); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { padding: 7px 9px; border-bottom: 1px solid var(--border-soft); text-align: left;
+           vertical-align: top; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-dim); }
+  td.name { max-width: 240px; overflow-wrap: anywhere; }
+  .pill { display: inline-block; padding: 1px 7px; border-radius: 99px;
+          font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .ok   { background: var(--st-posted-bg);  color: var(--st-posted); }
+  .bad  { background: var(--danger-bg);     color: var(--danger); }
+  .wait { background: var(--surface-3);     color: var(--text-dim); }
+  .kind { background: var(--surface-3); color: var(--text-dim); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .card { background: var(--surface); border: 1px solid var(--border);
+          border-radius: 10px; overflow: hidden; }
+  .card img { display: block; width: 100%; height: 132px; object-fit: cover; background: var(--surface-2); }
+  .card figcaption { padding: 6px 8px; font-size: 11px; color: var(--text-dim);
+                     overflow-wrap: anywhere; }
+  .muted { color: var(--text-dim); }
+  .fail-note { font-size: 12px; color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<h1>Google Drive image probe</h1>
+<p class="sub">
+  Reads the live tracker and tries to render every asset as a plain <code>&lt;img&gt;</code>,
+  the way a static page would have to. Direct files come from <code>Files Chip URL</code>;
+  folder contents come from the <code>Drive Folder File List</code> column, which is what makes
+  folders workable without the Drive API. Nothing here is part of the site —
+  <code>index.html</code> does not link to it and nothing imports it.
+</p>
+
+<div class="panel warn">
+  <strong>Read this before trusting the result.</strong>
+  <p class="sub" style="margin:6px 0 0">
+    If this browser is signed in to a Google account that can already see these files, they may
+    load for you and for nobody else. The number that matters is the one you get in a
+    <strong>private / incognito window</strong>, signed out — that is what a client, or anyone
+    opening the hosted page, will actually get. Run it both ways and compare.
+  </p>
+</div>
+
+<div class="panel">
+  <div class="row">
+    <button id="run">Probe the tracker's links</button>
+    <button id="runFolders" class="ghost" disabled>Compare against the Drive API (needs a key)</button>
+    <span id="status" class="muted"></span>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <input type="text" id="key" placeholder="Optional: Drive API key — only to cross-check the sheet's folder lists">
+  </div>
+  <div class="row" style="margin-top:10px">
+    <input type="text" id="one" placeholder="Or paste any single Drive link to test it on its own">
+    <button id="runOne" class="ghost">Test that link</button>
+  </div>
+</div>
+
+<div id="out"></div>
+
+<script type="module">
+/* ---------------------------------------------------------------------------
+   The candidate endpoints.
+
+   A share link (/file/d/ID/view) serves an HTML page, not an image, so none of
+   these is the URL sitting in the sheet - each is built from the file ID.
+
+   None of them is a documented, supported API. Google has changed this
+   behaviour repeatedly, which is the single biggest reason to be careful about
+   building on it: a page that works today can start showing broken frames
+   without anybody touching the code.
+   ------------------------------------------------------------------------- */
+const ENDPOINTS = [
+  { id: 'thumbnail', label: 'drive.google.com/thumbnail',
+    url: (id) => `https://drive.google.com/thumbnail?id=${id}&sz=w1600` },
+  { id: 'lh3',       label: 'lh3.googleusercontent.com/d',
+    url: (id) => `https://lh3.googleusercontent.com/d/${id}=w1600` },
+  { id: 'ucview',    label: 'drive.google.com/uc?export=view',
+    url: (id) => `https://drive.google.com/uc?export=view&id=${id}` },
+];
+
+const LOAD_TIMEOUT = 12000;
+const CONCURRENCY = 6;
+const PROBE_PER_FOLDER = 6;   // enough to answer "is this folder's content shared?"
+const SHOW_PER_FOLDER = 24;   // thumbnails drawn before a folder is collapsed
+
+const $ = (s) => document.querySelector(s);
+const out = $('#out');
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/** file id, folder id, or neither, out of whatever the sheet holds. */
+function parseDriveLink(raw) {
+  const v = String(raw || '').trim();
+  if (!v) return { kind: 'blank' };
+  if (!/^https?:\/\//i.test(v)) return { kind: 'not-a-url', v };
+
+  let m = v.match(/\/file\/d\/([\w-]{20,})/);
+  if (m) return { kind: 'file', id: m[1], v };
+  m = v.match(/\/drive\/folders\/([\w-]{20,})/);
+  if (m) return { kind: 'folder', id: m[1], v };
+  m = v.match(/[?&]id=([\w-]{20,})/);
+  if (m) return { kind: 'file', id: m[1], v };
+  m = v.match(/\/document\/d\/([\w-]{20,})|\/spreadsheets\/d\/([\w-]{20,})/);
+  if (m) return { kind: 'google-doc', id: m[1] || m[2], v };
+  return { kind: 'other-url', v };
+}
+
+/**
+ * Does this URL actually give us an image?
+ *
+ * Deliberately an <img> rather than fetch(). An <img> is what a page would use
+ * to display the asset, and images are exempt from CORS - fetch() against
+ * drive.google.com is blocked outright and would tell us nothing about whether
+ * the picture can be shown. naturalWidth is checked because a refusal often
+ * arrives as a tiny placeholder rather than as an error.
+ */
+function probeImage(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const t0 = performance.now();
+    let settled = false;
+    const done = (ok, note) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ ok, note, ms: Math.round(performance.now() - t0),
+                w: img.naturalWidth, h: img.naturalHeight, url });
+    };
+    const timer = setTimeout(() => { img.src = ''; done(false, 'timed out'); }, LOAD_TIMEOUT);
+    img.onload = () => done(img.naturalWidth > 2, img.naturalWidth > 2 ? '' : 'blank 1px response');
+    img.onerror = () => done(false, 'refused or not an image');
+    img.referrerPolicy = 'no-referrer';
+    img.src = url;
+  });
+}
+
+/** Run jobs a few at a time; 60-odd image requests at once invites throttling. */
+async function pool(items, worker, n = CONCURRENCY, onTick) {
+  const results = new Array(items.length);
+  let next = 0, done = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await worker(items[i], i);
+      if (onTick) onTick(++done, items.length);
+    }
+  }));
+  return results;
+}
+
+/* --------------------------------- the run -------------------------------- */
+
+async function loadRows() {
+  const { CSV_URL } = await import('./js/config.js');
+  const { parseCSV } = await import('./js/csv.js');
+  const res = await fetch(`${CSV_URL}&_=${Date.now()}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`sheet returned ${res.status}`);
+  const rows = parseCSV(await res.text());
+  const head = rows[0].map((h) => h.trim().toLowerCase());
+  const iUrl = head.indexOf('files chip url');
+  const iName = head.indexOf('files');
+  // The sheet now carries the contents of each folder in its own column, put
+  // there by an Apps Script. That is the thing that makes folders workable from
+  // a static page at all: no Drive API, no API key, no CORS problem - the file
+  // ids arrive with the rest of the row.
+  const iList = head.indexOf('drive folder file list');
+
+  return rows.slice(1)
+    .map((r) => ({
+      name: (r[iName] || '').trim(),
+      raw: (r[iUrl] || '').trim(),
+      list: iList === -1 ? '' : (r[iList] || '').trim(),
+    }))
+    .filter((r) => r.raw || r.list);
+}
+
+/** Every /file/d/ID/ in the folder-contents cell, in the order the script wrote them. */
+const folderFileIds = (list) =>
+  [...String(list || '').matchAll(/\/file\/d\/([\w-]{20,})/g)].map((m) => m[1]);
+
+const isVideo = (name) => /\.(mp4|mov|webm|m4v)$/i.test(name.trim());
+
+async function run() {
+  $('#run').disabled = true;
+  out.innerHTML = '';
+  $('#status').textContent = 'reading the tracker…';
+
+  let rows;
+  try { rows = await loadRows(); }
+  catch (err) {
+    $('#status').textContent = '';
+    out.innerHTML = `<div class="panel warn"><strong>Could not read the sheet.</strong>
+      <p class="sub" style="margin:6px 0 0">${esc(err.message)} — this page has to be served
+      over HTTP, same as the app. Open it through <code>localhost</code>, not from disk.</p></div>`;
+    $('#run').disabled = false;
+    return;
+  }
+
+  const parsed = rows.map((r) => ({ ...r, ...parseDriveLink(r.raw) }));
+
+  // One asset can be linked from several rows, so probe each id once and count
+  // distinct files - otherwise a duplicate reads as a failure in the totals.
+  const fileLinks = parsed.filter((p) => p.kind === 'file');
+  const seen = new Set();
+  const files = fileLinks.filter((f) => !seen.has(f.id) && seen.add(f.id));
+  const dupes = fileLinks.length - files.length;
+  const folders = parsed.filter((p) => p.kind === 'folder')
+    .map((f) => ({ ...f, ids: folderFileIds(f.list) }));
+  const others = parsed.filter((p) => !['file', 'folder'].includes(p.kind));
+
+  $('#runFolders').disabled = !folders.length;
+
+  $('#status').textContent = `probing ${files.length} file links × ${ENDPOINTS.length} endpoints…`;
+
+  const jobs = [];
+  for (const f of files) for (const e of ENDPOINTS) jobs.push({ f, e });
+  const results = await pool(jobs, ({ f, e }) => probeImage(e.url(f.id)), CONCURRENCY,
+    (d, n) => { $('#status').textContent = `probing… ${d} / ${n}`; });
+
+  // fold back into one row per file
+  const byFile = new Map(files.map((f) => [f.id, { file: f, per: {} }]));
+  jobs.forEach((j, i) => { byFile.get(j.f.id).per[j.e.id] = results[i]; });
+  const rowsOut = [...byFile.values()];
+
+  const anyOk = rowsOut.filter((r) => ENDPOINTS.some((e) => r.per[e.id].ok));
+  const perEndpoint = ENDPOINTS.map((e) =>
+    ({ e, n: rowsOut.filter((r) => r.per[e.id].ok).length }));
+
+  /*
+   * Now the folders. One endpoint only (the one just proved) and a handful of
+   * children each: the question here is whether the files INSIDE a shared
+   * folder are reachable, and six of them answers that as well as two hundred
+   * would. Everything else is still shown, lazily, so it can be eyeballed.
+   */
+  const folderJobs = [];
+  for (const f of folders) {
+    for (const id of f.ids.slice(0, PROBE_PER_FOLDER)) folderJobs.push({ f, id });
+  }
+  $('#status').textContent = `probing ${folderJobs.length} files inside ${folders.length} folders…`;
+  const fRes = await pool(folderJobs, ({ id }) => probeImage(ENDPOINTS[0].url(id)), CONCURRENCY,
+    (d, n) => { $('#status').textContent = `folders… ${d} / ${n}`; });
+
+  const fProbe = new Map(folders.map((f) => [f.id, []]));
+  folderJobs.forEach((j, i) => { fProbe.get(j.f.id).push({ id: j.id, ...fRes[i] }); });
+
+  $('#status').textContent = '';
+  render({ rowsOut, anyOk, perEndpoint, files, folders, others, dupes, fileLinks, fProbe });
+  $('#run').disabled = false;
+}
+
+function render({ rowsOut, anyOk, perEndpoint, files, folders, others, dupes, fileLinks, fProbe }) {
+  const pct = files.length ? Math.round((anyOk.length / files.length) * 100) : 0;
+
+  // Declared up here because the verdict below reads them; computing them
+  // further down put them in the temporal dead zone of their own template.
+  const totalInside = folders.reduce((n, f) => n + f.ids.length, 0);
+  const folderOk = folders.filter((f) => (fProbe.get(f.id) || []).some((r) => r.ok));
+  const probedAll = folders.flatMap((f) => fProbe.get(f.id) || []);
+  const probedOk = probedAll.filter((r) => r.ok).length;
+
+  const verdict = `
+    <h2>Verdict</h2>
+    <div class="verdict">
+      <div class="stat ${anyOk.length ? 'stat--ok' : 'stat--bad'}">
+        <b>${anyOk.length} / ${files.length}</b><span>distinct files rendered</span></div>
+      <div class="stat"><b>${pct}%</b><span>of direct files</span></div>
+      <div class="stat"><b>${fileLinks.length}</b><span>file links${
+        dupes ? ` (${dupes} dup)` : ''}</span></div>
+      <div class="stat ${folderOk.length === folders.length && folders.length ? 'stat--ok' : ''}">
+        <b>${folderOk.length} / ${folders.length}</b><span>folders readable</span></div>
+      <div class="stat"><b>${totalInside}</b><span>files inside them</span></div>
+      <div class="stat"><b>${others.length}</b><span>neither</span></div>
+    </div>
+    <p class="sub">
+      ${anyOk.length
+        ? `A static page <strong>can</strong> display these, using the endpoint(s) marked below.
+           Folders work too, via the sheet's own <code>Drive Folder File List</code> column —
+           no Drive API and no key.`
+        : `Nothing loaded. Either the files are not shared "anyone with the link", or Google is
+           refusing these endpoints for this account. Try again in a private window before
+           concluding anything — and check one file's sharing setting in Drive.`}
+    </p>
+    <div class="panel">
+      <table><thead><tr><th>Endpoint</th><th>Worked</th><th></th></tr></thead><tbody>
+      ${perEndpoint.map(({ e, n }) => `<tr>
+        <td><code>${esc(e.label)}</code></td>
+        <td><span class="pill ${n ? 'ok' : 'bad'}">${n} / ${files.length}</span></td>
+        <td class="fail-note">${n === files.length ? 'all'
+          : n ? 'partial — do not rely on it alone' : 'none'}</td>
+      </tr>`).join('')}
+      </tbody></table>
+    </div>`;
+
+  const table = `
+    <h2>Every file link</h2>
+    <div class="panel" style="overflow-x:auto">
+      <table><thead><tr>
+        <th>Asset</th><th>Kind</th>
+        ${ENDPOINTS.map((e) => `<th>${esc(e.id)}</th>`).join('')}
+        <th>Size</th>
+      </tr></thead><tbody>
+      ${rowsOut.map(({ file, per }) => {
+        const best = ENDPOINTS.map((e) => per[e.id]).find((r) => r.ok);
+        return `<tr>
+          <td class="name">${esc(file.name) || '<span class="muted">(unnamed)</span>'}</td>
+          <td><span class="pill kind">${isVideo(file.name) ? 'video' : 'image'}</span></td>
+          ${ENDPOINTS.map((e) => {
+            const r = per[e.id];
+            return `<td><span class="pill ${r.ok ? 'ok' : 'bad'}" title="${esc(r.note || '')}">${
+              r.ok ? `${r.ms}ms` : '✕'}</span></td>`;
+          }).join('')}
+          <td class="muted">${best ? `${best.w}×${best.h}` : '—'}</td>
+        </tr>`;
+      }).join('')}
+      </tbody></table>
+    </div>`;
+
+  const gallery = anyOk.length ? `
+    <h2>What actually came back</h2>
+    <p class="sub">A video's thumbnail is its poster frame, which is what was asked for.
+      <code>sz=w1600</code> is a request, not a cap: Drive serves up to the asset's own
+      resolution and no further, so a 1080&times;1920 reel comes back at 1080&times;1920 and a
+      smaller image comes back at its native size. Ask for more than the source has and you get
+      the source.</p>
+    <div class="grid">
+      ${anyOk.map(({ file, per }) => {
+        const r = ENDPOINTS.map((e) => per[e.id]).find((x) => x.ok);
+        return `<figure class="card" style="margin:0">
+          <img src="${esc(r.url)}" alt="" referrerpolicy="no-referrer" loading="lazy">
+          <figcaption>${esc(file.name) || '(unnamed)'}</figcaption>
+        </figure>`;
+      }).join('')}
+    </div>` : '';
+
+  /* --------------------- one section per folder ------------------------- */
+
+  const foldersBlock = folders.length ? `
+    <h2>Folders — what is inside each one</h2>
+    <p class="sub">
+      Taken from the sheet's <code>Drive Folder File List</code> column, not from the Drive API.
+      That column already holds the file links for each folder, which is what makes folders
+      workable from a static page at all: no API key, no CORS problem, the ids arrive with the
+      rest of the row. ${probedOk} of ${probedAll.length} sampled files rendered
+      (up to ${PROBE_PER_FOLDER} per folder); the rest are drawn below and load as you scroll.
+    </p>
+    ${folders.map((f) => {
+      const probes = fProbe.get(f.id) || [];
+      const okN = probes.filter((r) => r.ok).length;
+      const verdictPill = !f.ids.length
+        ? '<span class="pill bad">list is empty</span>'
+        : okN === probes.length
+          ? `<span class="pill ok">all ${probes.length} sampled loaded</span>`
+          : okN
+            ? `<span class="pill bad">${okN} of ${probes.length} sampled loaded</span>`
+            : '<span class="pill bad">none loaded</span>';
+
+      const shown = f.ids.slice(0, SHOW_PER_FOLDER);
+      const rest = f.ids.length - shown.length;
+
+      return `
+        <div class="panel">
+          <div class="row" style="justify-content:space-between">
+            <div>
+              <strong>This folder: ${esc(f.name) || '(unlabelled)'}</strong>
+              <span class="muted">— ${f.ids.length} file${f.ids.length === 1 ? '' : 's'} inside</span>
+            </div>
+            <div class="row">
+              ${verdictPill}
+              <a href="${esc(f.v)}" target="_blank" rel="noopener noreferrer">open in Drive \u2197</a>
+            </div>
+          </div>
+          ${f.ids.length ? `
+            <div class="grid" style="margin-top:12px">
+              ${shown.map((id, i) => {
+                const p = probes.find((x) => x.id === id);
+                return `<figure class="card" style="margin:0">
+                  <img src="https://drive.google.com/thumbnail?id=${esc(id)}&sz=w600" alt=""
+                       referrerpolicy="no-referrer" loading="lazy">
+                  <figcaption>#${i + 1}${p ? ` <span class="pill ${p.ok ? 'ok' : 'bad'}">${
+                    p.ok ? `${p.w}\u00d7${p.h}` : 'failed'}</span>` : ''}<br>
+                    <span class="muted">${esc(id.slice(0, 14))}\u2026</span></figcaption>
+                </figure>`;
+              }).join('')}
+            </div>
+            ${rest > 0 ? `<p class="fail-note" style="margin:10px 0 0">
+              ${rest} more file${rest === 1 ? '' : 's'} in this folder, not drawn \u2014 the
+              sheet lists ${f.ids.length} altogether.</p>` : ''}
+          ` : `<p class="fail-note" style="margin:8px 0 0">The sheet's list for this folder is
+              empty, so there is nothing to show. Either the folder is empty or the script that
+              fills that column has not run for this row.</p>`}
+        </div>`;
+    }).join('')}
+    <div class="panel">
+      <strong>Alternative: the Drive API</strong>
+      <p class="sub" style="margin:6px 0 0">Not needed now that the sheet carries the lists, but
+      the button at the top still works if you want to compare. It requires an API key that would
+      be visible in the page source, which is the reason to prefer the column.</p>
+      <div id="folderOut"></div>
+    </div>` : '';
+
+  const othersBlock = others.length ? `
+    <h2>Neither (${others.length})</h2>
+    <div class="panel"><table><tbody>${others.map((o) =>
+      `<tr><td class="name">${esc(o.name)}</td><td><span class="pill kind">${esc(o.kind)}</span></td>
+       <td class="muted name">${esc(o.v || '')}</td></tr>`).join('')}</tbody></table></div>` : '';
+
+  out.innerHTML = verdict + table + gallery + foldersBlock + othersBlock;
+  window.__folders = folders;
+}
+
+/* ------------------------------- folders ---------------------------------- */
+
+async function runFolders() {
+  const key = $('#key').value.trim();
+  const host = $('#folderOut');
+  if (!host) return;
+  if (!key) { host.innerHTML = `<div class="panel warn">Paste a Drive API key first.</div>`; return; }
+
+  $('#runFolders').disabled = true;
+  host.innerHTML = `<p class="sub">listing…</p>`;
+  const folders = window.__folders || [];
+
+  const listed = await pool(folders, async (f) => {
+    const url = `https://www.googleapis.com/drive/v3/files?q=${
+      encodeURIComponent(`'${f.id}' in parents and trashed=false`)
+    }&fields=files(id,name,mimeType)&pageSize=50&key=${encodeURIComponent(key)}`;
+    try {
+      const res = await fetch(url);
+      const body = await res.json();
+      if (!res.ok) return { f, error: body?.error?.message || `HTTP ${res.status}` };
+      return { f, files: body.files || [] };
+    } catch (err) { return { f, error: err.message }; }
+  }, 3);
+
+  const okCount = listed.filter((l) => l.files).length;
+  host.innerHTML = `
+    <div class="panel">
+      <strong>${okCount} of ${folders.length} folders listed.</strong>
+      <p class="sub" style="margin:6px 0 0">The Drive API does send CORS headers, so this call
+      works from the browser — but the key is visible in the page source. Restrict it by HTTP
+      referrer if you ever ship this; that discourages casual reuse, it is not a security
+      boundary.</p>
+    </div>
+    ${listed.map(({ f, files, error }) => `
+      <h2>${esc(f.name) || '(unnamed)'} <span class="muted" style="font-weight:400">
+        ${error ? `— ${esc(error)}` : `— ${files.length} item(s)`}</span></h2>
+      ${files && files.length ? `<div class="grid">${files.map((c) => `
+        <figure class="card" style="margin:0">
+          <img src="https://drive.google.com/thumbnail?id=${esc(c.id)}&sz=w600" alt=""
+               referrerpolicy="no-referrer" loading="lazy">
+          <figcaption>${esc(c.name)}</figcaption>
+        </figure>`).join('')}</div>` : ''}
+    `).join('')}`;
+  $('#runFolders').disabled = false;
+}
+
+/* ------------------------------ single link -------------------------------- */
+
+async function runOne() {
+  const raw = $('#one').value.trim();
+  if (!raw) return;
+  const p = parseDriveLink(raw);
+  if (p.kind !== 'file') {
+    out.innerHTML = `<div class="panel warn">That parses as <code>${esc(p.kind)}</code>${
+      p.id ? `, id <code>${esc(p.id)}</code>` : ''}. Only a file link can be shown as an image
+      directly.</div>` + out.innerHTML;
+    return;
+  }
+  out.innerHTML = `<p class="sub">testing <code>${esc(p.id)}</code>…</p>` + out.innerHTML;
+  const res = await pool(ENDPOINTS, (e) => probeImage(e.url(p.id)), 3);
+  out.innerHTML = `
+    <h2>Single link</h2>
+    <div class="panel"><table><thead><tr><th>Endpoint</th><th>Result</th><th>Size</th></tr></thead>
+    <tbody>${ENDPOINTS.map((e, i) => `<tr>
+      <td><code>${esc(e.label)}</code></td>
+      <td><span class="pill ${res[i].ok ? 'ok' : 'bad'}">${res[i].ok ? 'loaded' : esc(res[i].note)}</span></td>
+      <td class="muted">${res[i].ok ? `${res[i].w}×${res[i].h}` : '—'}</td>
+    </tr>`).join('')}</tbody></table></div>
+    ${res.some((r) => r.ok) ? `<div class="grid"><figure class="card" style="margin:0">
+      <img src="${esc(res.find((r) => r.ok).url)}" alt="" referrerpolicy="no-referrer">
+      <figcaption>${esc(p.id)}</figcaption></figure></div>` : ''}
+  ` + out.innerHTML;
+}
+
+$('#run').addEventListener('click', run);
+$('#runFolders').addEventListener('click', runFolders);
+$('#runOne').addEventListener('click', runOne);
+</script>
+</body>
+</html>

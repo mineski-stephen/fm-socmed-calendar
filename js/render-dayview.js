@@ -15,7 +15,7 @@ import { escapeHtml, groupBy, orderedEntries, rafThrottle } from './utils.js';
 import { monthDayKeys, partsFromKey, monthLabel, todayKey } from './dates.js';
 import { state } from './state.js';
 import {
-  getByDay, expandByPlatform, visiblePlatforms, isOverdue,
+  getByDay, expandByPlatform, visiblePlatforms, isOverdue, countPosts,
 } from './selectors.js';
 import { brandMeta, platformMeta } from './data.js';
 import {
@@ -97,6 +97,9 @@ function stripBodyHTML(posts, only = '') {
 }
 
 function stripHeadHTML(key, posts, only = '') {
+  // Posts, not rows: a crosspost on this day is drawn twice below, so the
+  // header would otherwise say "1 post" above two cards.
+  const n = countPosts(posts);
   const parts = partsFromKey(key);
   const d = new Date(parts.y, parts.mo, parts.d);
   const tally = new Map();
@@ -135,7 +138,7 @@ function stripHeadHTML(key, posts, only = '') {
       <div class="strip__date">
         <span class="strip__num">${parts.d}</span>
         <span class="strip__mon">${MONTH_ABBR[parts.mo]} ${parts.y}</span>
-        <span class="strip__count">${posts.length || 0} post${posts.length === 1 ? '' : 's'}</span>
+        <span class="strip__count">${n} post${n === 1 ? '' : 's'}</span>
         ${posts.length ? `<button class="strip__zoom" data-act="expand-day" data-key="${key}"
             title="Examine this day's posts" aria-label="Examine this day's posts">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -143,8 +146,8 @@ function stripHeadHTML(key, posts, only = '') {
                     stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round"/>
             </svg></button>` : ''}
-        ${(() => { const n = posts.filter(isOverdue).length;
-           return n ? `<span class="strip__late">⚠ ${n} past due</span>` : ''; })()}
+        ${(() => { const late = countPosts(posts.filter(isOverdue));
+           return late ? `<span class="strip__late">⚠ ${late} past due</span>` : ''; })()}
       </div>
       ${chips ? `<div class="strip__chips">${chips}${onlyNote}</div>` : ''}
     </div>`;
@@ -233,6 +236,16 @@ function watchHydration(rail) {
   hydrateNear(rail);
 }
 
+/** Everything on show this month, counted in posts rather than in sheet rows. */
+const monthTotal = (byDay) =>
+  Array.from(byDay.values()).reduce((n, a) => n + countPosts(a), 0);
+
+/** "76 posts across 30 days" - the month subtitle. */
+function monthCountText(byDay, days) {
+  const total = monthTotal(byDay);
+  return `${total} post${total === 1 ? '' : 's'} across ${days} days`;
+}
+
 /**
  * Apply a filter change to a rail that is already built.
  *
@@ -245,6 +258,11 @@ export function refreshStripBodies() {
   const rail = document.querySelector('.rail');
   if (!rail) return;
   const byDay = getByDay();
+
+  // Built with the month skeleton, which a filter change does not rebuild, so
+  // it has to be rewritten here or it keeps reporting the unfiltered month.
+  const sub = document.querySelector('[data-monthcount]');
+  if (sub) sub.textContent = monthCountText(byDay, monthDayKeys(state.month.y, state.month.mo).length);
 
   rail.querySelectorAll('.strip').forEach((strip) => {
     const key = strip.dataset.key;
@@ -325,12 +343,11 @@ export function renderDayView(container) {
   const byDay = getByDay();
   const keys = monthDayKeys(y, mo);
   const today = todayKey();
-
-  const total = Array.from(byDay.values()).reduce((n, a) => n + a.length, 0);
+  const total = monthTotal(byDay);
 
   const head = `<div class="dayview__head">
       <div class="viewhead__title">${escapeHtml(monthLabel(y, mo))}
-        <small>${total} post${total === 1 ? '' : 's'} across ${keys.length} days</small>
+        <small data-monthcount>${monthCountText(byDay, keys.length)}</small>
       </div>
       <div class="railnav">
         <button class="btn btn--sq" data-act="prev-day" aria-label="Previous day">\u2039</button>
@@ -371,8 +388,8 @@ export function renderDayView(container) {
     const parts = partsFromKey(key);
     const d = new Date(parts.y, parts.mo, parts.d);
     const dayPosts = byDay.get(key) || [];
-    const n = dayPosts.length;
-    const late = dayPosts.filter(isOverdue).length;
+    const n = countPosts(dayPosts);
+    const late = countPosts(dayPosts.filter(isOverdue));
     const cls = ['dayruler__day'];
     if (!n) cls.push('is-empty');
     if (late) cls.push('is-overdue');

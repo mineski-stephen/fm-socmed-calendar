@@ -49,10 +49,6 @@ function carouselHTML(post, tiles, hue) {
         ${post.files ? `<span class="ph__label">${escapeHtml(post.files)}</span>` : ''}
       </div></div>`);
   }
-  const dots = Array.from({ length: tiles }, (_, s) =>
-    `<button class="igcar__dot" data-act="carousel-dot" data-post="${escapeHtml(post.id)}" ` +
-    `data-i="${s}" aria-current="${s === i}" aria-label="Slide ${s + 1}"></button>`).join('');
-
   return `<div class="igcar" data-carousel="${escapeHtml(post.id)}" data-n="${tiles}"
                style="--i:${i}">
       <div class="igcar__track">${slides.join('')}</div>
@@ -63,8 +59,7 @@ function carouselHTML(post, tiles, hue) {
       <button class="igcar__nav igcar__nav--next" data-act="carousel-nav"
               data-post="${escapeHtml(post.id)}" data-step="1"
               aria-label="Next slide" ${i === tiles - 1 ? 'disabled' : ''}>\u203a</button>
-    </div>
-    <div class="igcar__dots">${dots}</div>`;
+    </div>`;
 }
 
 export function mockInstagramHTML(post, platformKey = 'instagram') {

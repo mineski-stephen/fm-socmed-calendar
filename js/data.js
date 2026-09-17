@@ -128,12 +128,33 @@ export const platformMeta = (k) => PLATFORM_META[k] || PLATFORM_FALLBACK;
 export const typeMeta     = (k) => TYPE_META[k] || TYPE_FALLBACK;
 export const statusMeta   = (k) => STATUS_META[k] || STATUS_FALLBACK;
 
+/*
+ * The Files cell is the ONLY place the sheet ever states a file type -
+ * "FAM_0915_IG_REEL_9X16_V1.mp4" - because the Drive listing is bare URLs and
+ * a Drive thumbnail looks the same whether it came from a photo or a clip.
+ * So everything below is positive evidence or nothing.
+ */
+const FILE_EXT = /\.([a-z0-9]{2,5})(?=[\s),]|$)/gi;
+
+const extsIn = (files) =>
+  [...String(files ?? '').trim().matchAll(FILE_EXT)].map((m) => m[1].toLowerCase());
+
 /** Guess a media kind from the asset filename when Type of Post is blank. */
 function inferTypeFromFiles(files) {
-  const m = /\.([a-z0-9]{2,5})(?:\s|$|\))/i.exec(String(files ?? '').trim());
-  if (!m) return null;
-  return EXT_HINTS[m[1].toLowerCase()] || null;
+  for (const ext of extsIn(files)) {
+    if (EXT_HINTS[ext]) return EXT_HINTS[ext];
+  }
+  return null;
 }
+
+/**
+ * Does the sheet actually name a clip for this row?
+ *
+ * Only formats that could be either need to ask. A Reel is a video whatever
+ * the cell says; a Story is a photo about as often as it is a video, and the
+ * team writes the filename when there is one.
+ */
+const namesVideoFile = (files) => extsIn(files).some((ext) => EXT_HINTS[ext] === 'reels');
 
 /* ------------------------------ normalise --------------------------------- */
 
@@ -267,6 +288,8 @@ function normalise(rec) {
     owner: (rec.owner || '').trim(),
     desc: (rec.desc || '').trim(),
     files: (rec.files || '').trim(),
+    // Whether the named asset is a clip, for the formats that can be either.
+    videoFile: namesVideoFile(rec.files),
     caption,
     hasCaption: !!caption.trim(),
     captionIsLong: caption.length > 200 || caption.split('\n').length > 5,
@@ -363,13 +386,20 @@ function makeEngagement(post, platformKey) {
  * bar never offers a platform nobody posts to.
  */
 export function buildFacets(posts) {
+  /*
+   * Counted in posts, not rows: a Facebook+Instagram crosspost is two posts,
+   * so it adds two to its brand, its status and its type - exactly the two it
+   * adds to the platform counts below. Every facet therefore sums to the same
+   * total, which is the number in the app bar.
+   */
   const count = (keyFn) => {
     const m = new Map();
-    for (const p of posts) { const k = keyFn(p); m.set(k, (m.get(k) || 0) + 1); }
+    for (const p of posts) {
+      const k = keyFn(p);
+      m.set(k, (m.get(k) || 0) + p.platformKeys.length);
+    }
     return m;
   };
-  // A crosspost is one row but appears under each platform it goes out on, so
-  // the platform counts legitimately sum to more than the row count.
   const platforms = new Map();
   for (const p of posts) {
     for (const pk of p.platformKeys) platforms.set(pk, (platforms.get(pk) || 0) + 1);

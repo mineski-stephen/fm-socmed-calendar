@@ -73,18 +73,6 @@
 .igcar__nav--next { right: 8px; }
 .igcar__nav[disabled] { opacity: 0; pointer-events: none; }
 
-.igcar__dots {
-  display: flex; align-items: center; justify-content: center; gap: 5px;
-  padding: 7px 0 1px;
-}
-.igcar__dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  border: 0; padding: 0;
-  background: var(--surface-3);
-  cursor: pointer;
-}
-.igcar__dot[aria-current="true"] { background: var(--link); }
-
 /* ------------------------------ actions ---------------------------------- */
 
 .mock-ig__bar {

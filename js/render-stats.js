@@ -65,8 +65,10 @@ export function renderStats(container) {
       'date gone by, still not Posted', 'var(--danger)'));
   }
   if (s.crossposts) {
+    // Why the post count is larger than the number of rows in the sheet.
     kpis.push(kpi('Crossposts', s.crossposts,
-      `${s.placements} placements across all platforms`, 'var(--accent-2)'));
+      `${s.rowsShown} tracker row${s.rowsShown === 1 ? '' : 's'} make ${s.shown} posts`,
+      'var(--accent-2)'));
   }
   if (s.incomplete) {
     kpis.push(kpi('Incomplete rows', s.incomplete,
@@ -180,9 +182,7 @@ function matrixHTML(s) {
              `title="${escapeHtml(`${done} of ${n} posted`)}">` +
              `<b>${done}</b><i>/${n}</i></span></td>`;
     }).join('');
-    // placements, not rows: a crosspost contributes a count to two columns,
-    // so summing rows is the only total that reconciles with the cells
-    const total = s.byBrandPlacements.get(bk) || 0;
+    const total = s.byBrand.get(bk) || 0;
     return `<tr><td><span class="fchip__dot" style="--c:${b.hue}"></span> ` +
            `${escapeHtml(b.label)}</td>${cells}<td class="matrix__tot">${total}</td></tr>`;
   }).join('');
@@ -195,7 +195,7 @@ function matrixHTML(s) {
 
 /**
  * The most operationally useful panel on this tab: it names exactly how many
- * rows still need a caption, an asset, or a live link.
+ * posts still need a caption, an asset, or a live link.
  */
 function readinessHTML(s) {
   return `<div class="readiness">${s.readiness.map((r) => {
