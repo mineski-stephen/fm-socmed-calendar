@@ -36,11 +36,11 @@ export const LOADER_MIN_MS = 1000;
 export const ALERT_SNOOZE_MS = 10 * 60 * 1000;
 
 /**
- * How far ahead the "coming up" notification looks, in days. Two means today,
- * tomorrow and the day after, which is the window in which a post still needs
- * assets approving rather than just watching.
+ * How far ahead the "coming up" notification looks, in days beyond today.
+ * One means today and tomorrow - near enough that there is still something to
+ * be done about it, rather than a list of everything vaguely ahead.
  */
-export const UPCOMING_WINDOW_DAYS = 2;
+export const UPCOMING_WINDOW_DAYS = 1;
 
 export const MONTHS = {
   jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
@@ -75,6 +75,10 @@ export const HEADER_ALIASES = {
   link:     ['postlink', 'livelink', 'link'],
   notes:    ['notescomments', 'notes', 'comments', 'remarks'],
   filesUrl: ['fileschipurl', 'fileschip', 'fileurl', 'fileslink', 'assetlink'],
+  // Every file inside the folder that filesUrl points at, written into the
+  // sheet by an Apps Script. This is what lets the page show the real creative:
+  // a folder link on its own is not something a browser can look inside.
+  driveList: ['drivefolderfilelist', 'folderfilelist', 'filelist', 'drivefiles'],
 };
 
 /** Columns without which the page cannot render anything meaningful. */
@@ -340,3 +344,23 @@ export const PLAY_BADGE = 'img/fb_play.png';
 
 /** Tile count for an album/carousel when the sheet does not say otherwise. */
 export const CAROUSEL_DEFAULT = 4;
+
+/* ---------------------------------------------------------------------------
+   Real creative, out of Google Drive.
+
+   A Drive share link serves an HTML page, not an image, so the id is pulled
+   out of it and handed to the thumbnail endpoint instead. `sz` is a request
+   rather than a cap: Drive returns up to the asset's own resolution, so a
+   1080x1920 reel comes back at 1080x1920.
+
+   This endpoint is NOT documented or supported, and Google has changed it
+   before. Everything that uses it therefore keeps the CSS placeholder
+   underneath and falls back to it when an image does not arrive - see the
+   delegated error handler in main.js. A broken frame in front of a client is
+   worse than a placeholder.
+   ------------------------------------------------------------------------- */
+export const DRIVE_IMG = (id, w = 1200) =>
+  `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w${w}`;
+
+/** How many real images a single post will draw before it stops. */
+export const MAX_DRIVE_IMAGES = 10;

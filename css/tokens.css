@@ -47,6 +47,10 @@
   --st-scheduled-bg:   #e0e7ff;
   --st-posted:         #15803d;
   --st-posted-bg:      #dcfce7;
+  /* Text drawn ON the posted colour - a chart label inside a green bar. It has
+     to flip with the theme, because --st-posted is a dark green here and a
+     light one on dark; one fixed value is unreadable on one of them. */
+  --on-posted:         #ffffff;
   --st-resched:        #7e22ce;
   --st-resched-bg:     #f3e8ff;
   --st-unknown:        #6b7280;
@@ -124,6 +128,7 @@
   --st-scheduled-bg:   #1e1f4d;
   --st-posted:         #4ade80;
   --st-posted-bg:      #10301c;
+  --on-posted:         #06240f;
   --st-resched:        #c79cff;
   --st-resched-bg:     #2b1a44;
   --st-unknown:        #9aa3ae;

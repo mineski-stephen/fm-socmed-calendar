@@ -33,6 +33,7 @@
   color: rgba(255, 255, 255, .42);
 }
 .lb__hint[hidden] { display: none; }
+
 .lb__x {
   margin-left: auto;
   appearance: none; border: 0;

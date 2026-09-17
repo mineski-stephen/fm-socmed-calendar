@@ -76,3 +76,137 @@
   width: 34px; height: auto;
   display: block;
 }
+
+/* ===========================================================================
+   The photo post.
+
+   Reference: mock_layouts/tiktok_post.png. A different screen from the feed:
+   light rather than black, the image contained rather than full-bleed with
+   carousel dots beneath it, the channel and its sound in a top bar, and the
+   actions along the bottom beside a comment field.
+
+   It reuses .phone for the 9:16 frame only - the dark tokens .phone sets are
+   overridden back here, because this screen is light in the real app.
+   ========================================================================= */
+
+.mock-tt--photo .phone__screen {
+  background: var(--bg-elev);
+  color: var(--text);
+  display: flex; flex-direction: column;
+  user-select: none;
+}
+
+/* .phone paints itself dark for the video feed; a photo post is not. */
+.mock-tt--photo {
+  --text: #10131a;
+  --text-dim: #59606c;
+  --text-faint: #8b929e;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --surface-3: #e4e6eb;
+  --border: #d9dde2;
+  --border-soft: #e8ebee;
+  --link: #1a73e8;
+  --hash: #1a73e8;
+  --mention: #1a73e8;
+}
+:root[data-theme="dark"] .mock-tt--photo {
+  --text: #e8eaed;
+  --text-dim: #a5adb8;
+  --text-faint: #737b86;
+  --surface: #191d22;
+  --surface-2: #22262c;
+  --surface-3: #2c3138;
+  --border: #2f353c;
+  --border-soft: #23282e;
+  --link: #6aa9ff;
+  --hash: #6aa9ff;
+  --mention: #6aa9ff;
+}
+
+.mock-tt__ptop {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 10px 9px;
+  flex: 0 0 auto;
+}
+.mock-tt__ptop > svg { width: 17px; height: 17px; fill: currentColor; flex: 0 0 auto; }
+.mock-tt__ptop .phone__av--sm { border: 0; width: 28px; height: 28px; }
+
+.mock-tt__pwho { min-width: 0; flex: 1; }
+.mock-tt__pname {
+  font-size: 12.5px; font-weight: 700; letter-spacing: -.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mock-tt--photo .mock-tt__sound {
+  color: var(--text-dim);
+  text-shadow: none;
+  font-size: 10.5px;
+  margin-top: 0;
+}
+
+.mock-tt__follow {
+  flex: 0 0 auto;
+  padding: 4px 13px;
+  border-radius: 6px;
+  background: var(--pf-tiktok);
+  color: #fff;
+  font-size: 11.5px; font-weight: 700;
+}
+
+/* The image is contained, on the screen's own background, not bled to the
+   edges the way the video feed does it. */
+.mock-tt__pstage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 10px;
+  cursor: pointer;
+}
+.mock-tt__pstage.is-inert { cursor: default; }
+.mock-tt__pstage .ph {
+  max-height: 100%;
+  border-radius: 4px;
+}
+
+.mock-tt__dots {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 9px 0 2px;
+  flex: 0 0 auto;
+}
+.mock-tt__dots i {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--surface-3);
+}
+.mock-tt__dots i.is-on { background: var(--text); }
+
+.mock-tt__pcap {
+  padding: 4px 12px 8px;
+  flex: 0 0 auto;
+}
+.mock-tt__pcap .cap { font-size: 12px; font-weight: 600; }
+.mock-tt__pcap .cap--clamp { -webkit-line-clamp: 3; }
+
+.mock-tt__pbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--border-soft);
+  flex: 0 0 auto;
+}
+.mock-tt__addcomment {
+  flex: 1 1 auto; min-width: 0;
+  padding: 7px 12px;
+  border-radius: 99px;
+  background: var(--surface-2);
+  color: var(--text-faint);
+  font-size: 11px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mock-tt__pact {
+  display: inline-flex; align-items: center; gap: 4px;
+  flex: 0 0 auto;
+  color: var(--text);
+  font-size: 10.5px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.mock-tt__pact .glyph { width: 17px; height: 17px; }
+.mock-tt--photo .mock-tt__act--like .glyph { color: var(--pf-tiktok); }

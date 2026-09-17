@@ -114,9 +114,17 @@ export function captionHTML(text, { clamp = false, id = '', sm = false } = {}) {
   const expanded = id && state.expanded.has(captionKey(id, scope));
   const doClamp = clamp && !expanded;
   const cls = `cap${sm ? ' cap--sm' : ''}${doClamp ? ' cap--clamp' : ''}`;
+  /*
+   * Emitted HIDDEN. Whether a caption is actually clipped depends on how it
+   * wraps at the width it ends up with, which no string builder can know, so
+   * syncCaptionMore in captions.js measures each one after layout and reveals
+   * only the buttons that have something to reveal. An already-expanded
+   * caption keeps its button either way - it is the only way back.
+   */
   const more = clamp && id
     ? `<button class="cap-more" data-act="expand-caption" data-post="${escapeHtml(id)}"` +
-      `${scope ? ` data-scope="${escapeHtml(scope)}"` : ''}>` +
+      `${scope ? ` data-scope="${escapeHtml(scope)}"` : ''}` +
+      `${expanded ? '' : ' hidden'}>` +
       `${expanded ? 'See less' : 'See more'}</button>`
     : '';
 
@@ -141,11 +149,41 @@ export function captionHTML(text, { clamp = false, id = '', sm = false } = {}) {
  * filename so it reads as deliberate rather than as a broken image.
  */
 
+/**
+ * Where a click on this post should go, for the platform being drawn.
+ *
+ * A crosspost carries one Post Link per platform in the same cell, so the
+ * Facebook mock must open the Facebook post and the Instagram mock the
+ * Instagram one. Falling back in order: this platform's own link, then any
+ * link in the cell, then the asset in Drive, then nowhere.
+ */
+export function targetFor(post, platformKey = '') {
+  const own = platformKey && post.postLinks?.[platformKey];
+  if (own) return { url: own, kind: 'post', exact: true };
+  if (post.postLink) return { url: post.postLink, kind: 'post', exact: false };
+  if (post.filesUrl) return { url: post.filesUrl, kind: 'files', exact: false };
+  return { url: null, kind: null, exact: false };
+}
+
+/**
+ * Attributes for a page name or handle that links to the live post. Same
+ * resolution as clickable(), without the class - the callers style their own.
+ */
+export function linkAttrs(post, platformKey = '') {
+  const t = targetFor(post, platformKey);
+  return t.url
+    ? `data-act="open" data-url="${escapeHtml(t.url)}" role="link" tabindex="0"`
+    : 'title="No post link or asset link in the tracker"';
+}
+
 /** Class + attributes for something clickable that may have nowhere to go. */
-function clickable(post, baseCls) {
-  if (post.targetUrl) {
-    const label = post.targetKind === 'post' ? 'Open the live post' : 'Open the asset in Drive';
-    return `class="${baseCls}" data-act="open" data-url="${escapeHtml(post.targetUrl)}" ` +
+function clickable(post, baseCls, platformKey = '') {
+  const t = targetFor(post, platformKey);
+  if (t.url) {
+    const label = t.kind === 'post'
+      ? (t.exact ? 'Open the live post' : 'Open the live post (this row has one link)')
+      : 'Open the asset in Drive';
+    return `class="${baseCls}" data-act="open" data-url="${escapeHtml(t.url)}" ` +
            `role="link" tabindex="0" title="${label}"`;
   }
   return `class="${baseCls} is-inert" title="No post link or asset link in the tracker"`;
@@ -156,9 +194,56 @@ const phLabel = (post) =>
 
 const hueVar = (post) => `--ph-hue:hsl(${post.hue} 62% 52%)`;
 
-function phBlock(post, shapeCls, inner = '') {
-  return `<div class="ph ${shapeCls}" style="${hueVar(post)}">${inner}${phLabel(post)}</div>`;
+/*
+ * The real creative, laid over the drawn placeholder rather than instead of it.
+ *
+ * The Drive thumbnail endpoint is undocumented and has changed before, and a
+ * link can be made private at any moment, so an image that does not arrive
+ * must not leave a broken frame in a client's face. The placeholder stays in
+ * the box underneath; main.js hides a failed <img> on its error event and the
+ * placeholder is simply what is already there.
+ *
+ * It also covers the filename label, so a post with real creative shows the
+ * creative and a post without shows what the file is called.
+ *
+ * referrerpolicy="no-referrer" is NOT optional. Drive refuses the request when
+ * it carries a Referer from an origin it does not know - every image 403s from
+ * localhost or any host that is not Google's - and the page falls back to
+ * placeholders across the board. Suppress the header and the same URL serves
+ * the asset at full resolution.
+ */
+const imgHTML = (img, i = 0) => (img
+  ? `<img class="ph__img" src="${escapeHtml(img.src)}" alt="" loading="lazy" decoding="async"` +
+    ` referrerpolicy="no-referrer" data-drive="${escapeHtml(img.id)}"` +
+    `${i ? ` data-i="${i}"` : ''}>`
+  : '');
+
+/**
+ * @param {object} post
+ * @param {string} shapeCls  aspect class
+ * @param {string} inner     overlays drawn ON TOP of any real image
+ * @param {object} img       the asset to show, if the sheet knows of one
+ */
+function phBlock(post, shapeCls, inner = '', img = null) {
+  return `<div class="ph ${shapeCls}" style="${hueVar(post)}">` +
+         `${imgHTML(img)}${inner}${phLabel(post)}</div>`;
 }
+
+/*
+ * Formats that can be a SET of images. Nothing else qualifies, however many
+ * files the sheet lists for the row.
+ *
+ * A Story with three files in its folder is still a story, and a Reel with two
+ * is still a reel - those extra files are versions, sizes and re-cuts, not
+ * slides somebody will swipe through. Only a Static Post that turned out to
+ * have several images, or a row explicitly marked Album, becomes one.
+ */
+const SET_KINDS = new Set(['single', 'album']);
+
+/** Should this post be drawn as several images rather than one? */
+export const isImageSet = (post) =>
+  SET_KINDS.has(post.mediaKind)
+  && (post.mediaKind === 'album' || (post.images?.length || 0) > 1);
 
 /**
  * @param {object} post
@@ -169,15 +254,19 @@ export function mediaHTML(post, { aspect = 'ph--1x1', tiles = 0 } = {}) {
   const kind = post.mediaKind;
   if (kind === 'none') return '';
 
+  const imgs = post.images || [];
+  const first = imgs[0] || null;
+
   // Video fills the full card width rather than sitting in a 9:16 column with
   // dead space beside it. The drifting gradient plus the play badge is what
-  // says "this one moves"; a still block would read as a photo.
+  // says "this one moves"; a still block would read as a photo. With real
+  // creative the first frame is the poster and the badge sits over it.
   if (kind === 'reels') {
     return phBlock(post, `${aspect} ph--video`,
       `<span class="ph__sheen"></span>` +
       `<img class="ph__play" src="${PLAY_BADGE}" alt="">` +
       `<span class="ph__badge ph__badge--tl">REELS</span>` +
-      `<span class="ph__bar"><i></i></span>`);
+      `<span class="ph__bar"><i></i></span>`, first);
   }
 
   if (kind === 'story') {
@@ -185,13 +274,13 @@ export function mediaHTML(post, { aspect = 'ph--1x1', tiles = 0 } = {}) {
       `<span class="ph__segs"><i></i><i></i><i></i></span>` +
       `<span class="ph__sheen"></span>` +
       `<img class="ph__play" src="${PLAY_BADGE}" alt="">` +
-      `<span class="ph__badge ph__badge--tr">STORY</span>`);
+      `<span class="ph__badge ph__badge--tr">STORY</span>`, first);
   }
 
   if (kind === 'dynamic') {
     return phBlock(post, `${aspect} ph--dyn`,
       `<img class="ph__play ph__play--sm" src="${PLAY_BADGE}" alt="">` +
-      `<span class="ph__badge">GIF</span>`);
+      `<span class="ph__badge">GIF</span>`, first);
   }
 
   // A KOL or UGC share is someone else's post being amplified, so it is drawn
@@ -203,34 +292,52 @@ export function mediaHTML(post, { aspect = 'ph--1x1', tiles = 0 } = {}) {
           <span class="ph-ugc__who">Creator post</span>
           <span class="ph__badge ph__badge--inline">KOL / UGC</span>
         </div>
-        ${phBlock(post, aspect)}
+        ${phBlock(post, aspect, '', first)}
       </div>`;
   }
 
-  if (kind === 'album') {
-    const n = Math.max(2, tiles || post.tiles || CAROUSEL_DEFAULT);
-    const shown = Math.min(4, n);
-    const cells = [];
-    for (let i = 0; i < shown; i++) {
-      const more = (i === shown - 1 && n > shown)
-        ? `<span class="phgrid__more">+${n - shown}</span>` : '';
-      cells.push(`<div class="ph" style="${hueVar(post)};filter:hue-rotate(${i * 14}deg)">${more}</div>`);
-    }
-    return `<div class="phgrid">${cells.join('')}</div>`;
-  }
-
   if (kind === 'link') {
-    return phBlock(post, 'ph--191', `<span class="ph__badge ph__badge--tl">LINK</span>`);
+    return phBlock(post, 'ph--191',
+      `<span class="ph__badge ph__badge--tl">LINK</span>`, first);
   }
 
-  return phBlock(post, aspect);
+  // An album, either because the tracker says so or because the sheet turned
+  // out to list more than one file for a row that could be one.
+  if (isImageSet(post)) return albumHTML(post, aspect, tiles);
+
+  return phBlock(post, aspect, '', first);
+}
+
+/**
+ * Facebook's and LinkedIn's album grid: up to four tiles with a +N on the last.
+ *
+ * The tile count comes from the creative when the sheet lists it, and from the
+ * declared type when it does not - a row marked Album with nothing attached
+ * still has to look like an album.
+ */
+export function albumHTML(post, aspect = 'ph--1x1', tiles = 0) {
+  const imgs = post.images || [];
+  const n = Math.max(2, imgs.length || tiles || post.tiles || CAROUSEL_DEFAULT);
+  const shown = Math.min(4, n);
+  const cells = [];
+
+  for (let i = 0; i < shown; i++) {
+    const more = (i === shown - 1 && n > shown)
+      ? `<span class="phgrid__more">+${n - shown}</span>` : '';
+    const img = imgs[i] || null;
+    // Only the placeholders are hue-shifted per tile; a real photograph does
+    // not want a filter over it.
+    const style = img ? hueVar(post) : `${hueVar(post)};filter:hue-rotate(${i * 14}deg)`;
+    cells.push(`<div class="ph" style="${style}">${imgHTML(img, i)}${more}</div>`);
+  }
+  return `<div class="phgrid" data-n="${n}">${cells.join('')}</div>`;
 }
 
 /** The media block wrapped so a click opens Post Link, else Files Chip URL. */
-export function clickableMediaHTML(post, opts) {
+export function clickableMediaHTML(post, opts = {}) {
   const inner = mediaHTML(post, opts);
   if (!inner) return '';
-  return `<div ${clickable(post, 'mediawrap')}>${inner}</div>`;
+  return `<div ${clickable(post, 'mediawrap', opts.platformKey)}>${inner}</div>`;
 }
 
 export { clickable };
@@ -272,15 +379,20 @@ const incompleteMark = (post) => post.incomplete
   ? `<span class="warnmark" title="This row is missing its Platform or Type of Post ` +
     `in the tracker">!</span>` : '';
 
-const linksHTML = (post) => {
+const linksHTML = (post, platformKey = '') => {
   const out = [];
-  if (post.postLink) {
-    out.push(`<a class="linkbtn" href="${escapeHtml(post.postLink)}" target="_blank" ` +
-             `rel="noopener noreferrer">View live post \u2197</a>`);
+  // A crosspost's cell holds one link per platform; show this platform's.
+  const t = targetFor(post, platformKey);
+  if (t.kind === 'post') {
+    const label = t.exact && platformKey
+      ? `View on ${platformMeta(platformKey).label}`
+      : 'View live post';
+    out.push(`<a class="linkbtn" href="${escapeHtml(t.url)}" target="_blank" ` +
+             `rel="noopener noreferrer">${escapeHtml(label)} ↗</a>`);
   }
   if (post.filesUrl) {
     out.push(`<a class="linkbtn" href="${escapeHtml(post.filesUrl)}" target="_blank" ` +
-             `rel="noopener noreferrer">Open asset \u2197</a>`);
+             `rel="noopener noreferrer">Open asset ↗</a>`);
   }
   return out.length ? `<div class="pcard__links">${out.join('')}</div>` : '';
 };
@@ -368,12 +480,13 @@ export function simpleCardHTML(post, platformKey, { showMedia = false } = {}) {
   return `<article class="pcard${showMedia ? '' : ' pcard--compact'}${collapsed}">
     ${postHeaderHTML(post, platformKey)}
     <div class="pcard__body">
-      ${showMedia ? `<div class="pcard__thumb">${clickableMediaHTML(post, { aspect: 'ph--191' })}</div>` : ''}
+      ${showMedia ? `<div class="pcard__thumb">${
+        clickableMediaHTML(post, { aspect: 'ph--191', platformKey })}</div>` : ''}
       ${captionHTML(post.caption, { clamp: true, id: post.id, sm: true })}
       ${post.files
         ? `<div class="pcard__files">${glyph(GLYPHS.clip, 'glyph--clip')}<span>${escapeHtml(post.files)}</span></div>`
         : ''}
-      ${linksHTML(post)}
+      ${linksHTML(post, platformKey)}
     </div>
     ${noteHTML(post)}
   </article>`;

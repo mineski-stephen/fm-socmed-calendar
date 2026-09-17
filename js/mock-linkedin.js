@@ -13,7 +13,7 @@
 import { GLYPHS } from './config.js';
 import { escapeHtml, formatCount } from './utils.js';
 import { brandMeta } from './data.js';
-import { captionHTML, clickableMediaHTML, glyph, clickable } from './render-post.js';
+import { captionHTML, clickableMediaHTML, glyph, clickable, linkAttrs } from './render-post.js';
 
 const GLOBE = `<svg class="mock-li__globe" viewBox="0 0 16 16" aria-hidden="true">
   <circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1.3"/>
@@ -56,9 +56,7 @@ export function mockLinkedInHTML(post, platformKey = 'linkedin') {
     <div class="mock-li__head">
       <span ${clickable(post, 'mock-li__avlink')}>${avatarHTML(post)}</span>
       <div class="mock-li__who">
-        <div class="mock-li__name" ${post.targetUrl
-          ? `data-act="open" data-url="${escapeHtml(post.targetUrl)}" role="link" tabindex="0"`
-          : 'title="No post link or asset link in the tracker"'}>${escapeHtml(b.label)}${VERIFIED}</div>
+        <div class="mock-li__name" ${linkAttrs(post, platformKey)}>${escapeHtml(b.label)}${VERIFIED}</div>
         <div class="mock-li__meta">
           <span>${escapeHtml(post.relLabel)}</span>
           <span>·</span>
@@ -72,7 +70,7 @@ export function mockLinkedInHTML(post, platformKey = 'linkedin') {
 
     <div class="mock-li__cap">${captionHTML(post.caption, { clamp: true, id: post.id })}</div>
 
-    <div class="mock-li__media">${clickableMediaHTML(post, { aspect: 'ph--1x1' })}</div>
+    <div class="mock-li__media">${clickableMediaHTML(post, { aspect: 'ph--1x1', platformKey })}</div>
 
     <div class="mock-li__bar">
       <span class="mock-li__act">${glyph(GLYPHS.liLike)}<b>${formatCount(e.likes)}</b></span>

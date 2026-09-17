@@ -27,6 +27,30 @@
   pointer-events: none;
 }
 
+/* ---------------------------------------------------------------------------
+   The real creative.
+
+   Sits ON TOP of the drawn placeholder, not instead of it. The Drive endpoint
+   behind these is undocumented and a link can be made private at any time, so
+   a failed image is hidden by the delegated error handler in main.js and the
+   placeholder that was always underneath simply shows through. No broken
+   frames.
+   ------------------------------------------------------------------------- */
+.ph__img {
+  position: absolute; inset: 0;
+  z-index: 1;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  /* Fades in so a slow thumbnail does not snap over the placeholder. */
+  animation: phfade .25s ease both;
+}
+.ph__img[hidden] { display: none; }
+@keyframes phfade { from { opacity: 0; } to { opacity: 1; } }
+
+/* A real photo does not need the diagonal wash over it. */
+.ph:has(> .ph__img:not([hidden]))::before { opacity: 0; }
+
 .ph__label {
   position: relative;
   max-width: 82%;

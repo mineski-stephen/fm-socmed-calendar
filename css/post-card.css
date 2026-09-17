@@ -187,6 +187,8 @@
   cursor: pointer;
 }
 .cap-more:hover { color: var(--text-dim); }
+/* Hidden until captions.js confirms the caption is really clipped. */
+.cap-more[hidden] { display: none; }
 
 /* ------------------------ internal note / mock comment -------------------- */
 

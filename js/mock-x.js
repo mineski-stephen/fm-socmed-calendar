@@ -6,7 +6,7 @@
 import { GLYPHS, PLATFORM_META } from './config.js';
 import { escapeHtml, formatCount } from './utils.js';
 import { brandMeta } from './data.js';
-import { captionHTML, clickableMediaHTML, glyph } from './render-post.js';
+import { captionHTML, clickableMediaHTML, glyph, linkAttrs } from './render-post.js';
 
 const VERIFIED = `<svg viewBox="0 0 20 20" width="14" height="14" aria-label="Verified">
   <path fill="#1d9bf0" d="M10 .8l2.2 2.1 3-.3.6 3 2.6 1.5-1.3 2.7 1.3 2.7-2.6 1.5-.6 3-3-.3L10 19.2
@@ -26,9 +26,7 @@ export function mockXHTML(post, platformKey = 'x') {
   const b = brandMeta(post.brandKey);
   const e = post.engagement[platformKey];
 
-  const nameAttrs = post.targetUrl
-    ? `data-act="open" data-url="${escapeHtml(post.targetUrl)}" role="link" tabindex="0"`
-    : 'title="No post link or asset link in the tracker"';
+  const nameAttrs = linkAttrs(post, platformKey);
 
   return `<article class="mock-x">
     ${avatarHTML(post)}
@@ -43,7 +41,7 @@ export function mockXHTML(post, platformKey = 'x') {
 
       <div class="mock-x__cap">${captionHTML(post.caption, { clamp: true, id: post.id })}</div>
 
-      <div class="mock-x__media">${clickableMediaHTML(post, { aspect: 'ph--16x9' })}</div>
+      <div class="mock-x__media">${clickableMediaHTML(post, { aspect: 'ph--16x9', platformKey })}</div>
 
       <div class="mock-x__bar">
         <span class="mock-x__act">${glyph(GLYPHS.xComment)}${formatCount(e.comments)}</span>

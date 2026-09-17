@@ -133,9 +133,10 @@
 /* the total above each column */
 .chart .t-count { font-size: var(--st-micro); font-weight: 700; fill: var(--text);
   font-variant-numeric: tabular-nums; }
-/* Inside the green foot of a stacked bar. Fixed dark green rather than a
-   token: it sits on --st-posted in both themes, never on a page surface. */
-.chart .t-inbar { font-size: var(--st-micro); font-weight: 700; fill: #06240f;
+/* Inside the green foot of a stacked bar. --on-posted is defined per theme in
+   tokens.css because --st-posted is a DARK green on the light theme and a
+   light one on dark: a single fixed colour is unreadable on one of them. */
+.chart .t-inbar { font-size: var(--st-micro); font-weight: 700; fill: var(--on-posted);
   font-variant-numeric: tabular-nums; }
 .chart .grid  { stroke: var(--border-soft); stroke-width: 1; }
 .chart .track { fill: var(--surface-2); }
@@ -186,14 +187,17 @@
 .matrix td:first-child { font-weight: 600; white-space: nowrap; color: var(--text); }
 .matrix__hd { display: inline-flex; align-items: center; gap: 5px; justify-content: center; }
 .matrix__hd img { width: 17px; height: 17px; border-radius: 50%; }
+/* Posted against planned: the shipped number leads, the total trails it. */
 .matrix__n {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 30px; padding: 4px 8px;
+  display: inline-flex; align-items: baseline; justify-content: center; gap: 1px;
+  min-width: 46px; padding: 4px 8px;
   border-radius: 6px;
-  font-weight: 700; font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums;
   background: color-mix(in srgb, var(--accent) calc(var(--w, 0) * 1%), var(--surface-2));
   color: var(--text);
 }
+.matrix__n b { font-weight: 700; }
+.matrix__n i { font-style: normal; font-weight: 600; color: var(--text-dim); }
 /* the one place --text-faint belongs: a channel a brand does not cover */
 .matrix__n--zero { color: var(--text-faint); font-weight: 500; background: none; }
 .matrix__tot { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }

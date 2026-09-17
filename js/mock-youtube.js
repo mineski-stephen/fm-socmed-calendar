@@ -12,7 +12,7 @@
 import { GLYPHS } from './config.js';
 import { escapeHtml, formatCount } from './utils.js';
 import { brandMeta } from './data.js';
-import { captionHTML, mediaHTML, glyph, clickable } from './render-post.js';
+import { captionHTML, mediaHTML, glyph, clickable, linkAttrs } from './render-post.js';
 
 const BACK = `<svg viewBox="0 0 24 24" aria-hidden="true">
   <path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="2.1"
@@ -62,7 +62,7 @@ export function mockYouTubeHTML(post, platformKey = 'youtube') {
 
   return `<article class="mock-yt phone">
     <div class="phone__screen">
-      <div class="phone__media" ${clickable(post, 'phone__mediahit')}>
+      <div class="phone__media" ${clickable(post, 'phone__mediahit', platformKey)}>
         ${mediaHTML(post, { aspect: 'ph--fill' })}
       </div>
 
@@ -84,9 +84,7 @@ export function mockYouTubeHTML(post, platformKey = 'youtube') {
       <div class="phone__meta">
         <div class="mock-yt__channel">
           ${avatarHTML(post)}
-          <span class="phone__handle" ${post.targetUrl
-            ? `data-act="open" data-url="${escapeHtml(post.targetUrl)}" role="link" tabindex="0"`
-            : 'title="No post link or asset link in the tracker"'}>@${escapeHtml(b.handle)}</span>
+          <span class="phone__handle" ${linkAttrs(post, platformKey)}>@${escapeHtml(b.handle)}</span>
           <span class="mock-yt__sub">Subscribe</span>
         </div>
         <div class="phone__cap">${captionHTML(post.caption, { clamp: true, id: post.id, sm: true })}</div>

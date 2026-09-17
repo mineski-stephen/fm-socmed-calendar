@@ -32,6 +32,17 @@ export const state = {
   month: null,                // { y, mo }
   selectedDayKey: null,
 
+  /*
+   * The mock-up notice has been acknowledged for this session.
+   *
+   * Deliberately NOT persisted. It is shown once per page load, the first time
+   * the mocks are opened - a reload is a new viewing, and the person about to
+   * put this in front of a client has almost certainly just opened it fresh.
+   * Remembering the click forever would mean the one person who most needs to
+   * see it never does.
+   */
+  mockNoticeAck: false,
+
   filtersOpen: false,         // narrow screens only; wide screens always show them
   openFacet: null,            // which filter dropdown is currently open
   carousels: new Map(),       // postId -> slide index

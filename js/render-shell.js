@@ -3,9 +3,7 @@
    toasts. Everything outside the three views.
    ========================================================================== */
 
-import {
-  CSV_URL, PLATFORM_ORDER, TYPE_ORDER, STATUS_ORDER, UPCOMING_WINDOW_DAYS,
-} from './config.js';
+import { CSV_URL, PLATFORM_ORDER, TYPE_ORDER, STATUS_ORDER } from './config.js';
 import { escapeHtml, orderedEntries } from './utils.js';
 import { sinceLabel, todayKey } from './dates.js';
 import { state, hasActiveFilters, FILTER_FIELDS } from './state.js';
@@ -168,8 +166,8 @@ export function renderAlert() {
       kind: 'soon',
       icon: CLOCK_ICON,
       title: `${n} post${n === 1 ? '' : 's'} coming up`,
-      detail: `Due in the next ${UPCOMING_WINDOW_DAYS + 1} days and not posted yet \u00b7
-        ${escapeHtml(whoFrom(upcoming))} \u00b7 next is ${when}${at}`,
+      detail: `Due today or tomorrow and not posted yet ·
+        ${escapeHtml(whoFrom(upcoming))} · next is ${when}${at}`,
       action: `Review ${n === 1 ? 'it' : 'them'}`,
       act: 'show-upcoming',
       dismiss: 'dismiss-upcoming',
@@ -182,6 +180,78 @@ export function renderAlert() {
 
   bar.hidden = !cards.length;
   bar.innerHTML = html;
+}
+
+/* ---------------------------------------------------------------------------
+   The mock-up notice.
+
+   A modal that has to be acknowledged, not a banner. The day view and the
+   spotlight now show real creative in platform-accurate chrome, which is
+   exactly what makes them easy to mistake for a proof - so the point is made
+   once, in the way, and then got out of the way entirely.
+
+   It names the three different kinds of "not real" separately, because they
+   are not equally provisional: the engagement figures are invented outright,
+   the layouts are approximations, and the creative is simply whatever the
+   Drive link holds today.
+   ------------------------------------------------------------------------- */
+
+export const mockNoticeOpen = () => !!document.querySelector('.modal');
+
+export function closeMockNotice() {
+  const el = document.querySelector('.modal');
+  if (!el) return false;
+  state.mockNoticeAck = true;
+  const back = el.dataset.returnFocus === 'yes' ? lastMockFocus : null;
+  el.remove();
+  document.documentElement.classList.remove('modal-open');
+  if (back && back.isConnected) back.focus({ preventScroll: true });
+  lastMockFocus = null;
+  return true;
+}
+
+let lastMockFocus = null;
+
+/** Shown once per session, the first time the mocks are opened. */
+export function maybeShowMockNotice() {
+  if (state.mockNoticeAck || mockNoticeOpen()) return;
+  if (state.status !== 'ready') return;
+
+  lastMockFocus = document.activeElement;
+
+  const el = document.createElement('div');
+  el.className = 'modal';
+  el.dataset.returnFocus = 'yes';
+  el.setAttribute('role', 'alertdialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-labelledby', 'mocknote-title');
+  el.innerHTML = `
+    <div class="modal__box" role="document">
+      <svg class="modal__icon" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M12 7.6v5.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="12" cy="16.4" r="1.2" fill="currentColor"/>
+      </svg>
+      <h2 class="modal__title" id="mocknote-title">This is a mock-up</h2>
+      <p class="modal__body">Everything past this point is a preview built from the tracker,
+        not a proof of the finished posting.</p>
+      <ul class="modal__list">
+        <li><b>The engagement figures are invented.</b> Likes, comments and views are generated
+          so the layouts look right. They are not real numbers from anywhere.</li>
+        <li><b>The layouts are approximations.</b> Close enough to judge framing and length,
+          not pixel-accurate to what each platform will actually render.</li>
+        <li><b>The creative is whatever the Drive link holds today.</b> It changes when the
+          folder changes, and a placeholder means nothing is attached yet.</li>
+      </ul>
+      <div class="modal__actions">
+        <button class="btn btn--primary" data-act="dismiss-mocknote" autofocus>
+          Got it</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(el);
+  document.documentElement.classList.add('modal-open');
+  el.querySelector('button').focus({ preventScroll: true });
 }
 
 /* ------------------------------- filter bar -------------------------------- */

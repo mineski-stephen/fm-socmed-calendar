@@ -101,7 +101,8 @@ rather than causing an error.
 | Copywriting/Caption | no | `caption`, `copywriting`, `copy` | Multi-line, emoji, hashtags and links all supported |
 | Post Link | no | `livelink`, `link` | The live post, once published |
 | Notes/Comments | no | `notes`, `comments`, `remarks` | Rendered as an internal note on the post |
-| Files Chip URL | no | `fileschip`, `fileurl`, `assetlink` | Google Drive link to the creative |
+| Files Chip URL | no | `fileschip`, `fileurl`, `assetlink` | Google Drive link to the creative — a single file or a folder |
+| Drive Folder File List | no | `folderfilelist`, `filelist` | Every file inside that folder, written by an Apps Script. This is what lets the page show the real creative: a browser cannot look inside a folder link on its own |
 
 A row with **no readable Posting Date is skipped** — it cannot be placed on a calendar. Every
 other blank is handled gracefully.
@@ -264,8 +265,7 @@ would just train people to close it without reading it.
 
 #### Coming up
 
-A posting due **today, tomorrow or the day after** that is not yet marked `Posted` is
-*coming up*. The notice names how many there are, which brands, and when the soonest one is
+A posting due **today or tomorrow** that is not yet marked `Posted` is *coming up*. The notice names how many there are, which brands, and when the soonest one is
 due; **Review them** clears the other filters and opens the day the soonest one sits on.
 
 The window is keyed on the **date**, not on the exact timestamp. Every row in this tracker
@@ -591,8 +591,13 @@ Every number respects the active filters.
   actually shipped that day, the rest is what did not. Every date is labelled, so a spike can
   be named rather than counted along the axis. Each bar carries its **total above it** and its
   **shipped count inside the green**, because reading a stacked bar off a gridline is
-  guesswork and the split is the whole point of the chart.
-- **Brand x platform** — a heat grid; an empty cell is a channel a brand is not covering.
+  guesswork and the split is the whole point of the chart. The colour of that in-bar number
+  comes from `--on-posted`, which flips with the theme: `--st-posted` is a dark green on the
+  light theme and a light one on dark, so a single fixed colour is unreadable on one of them.
+- **Brand x platform** — a heat grid reading **posted against planned**: a cell showing `7/11`
+  is seven of eleven shipped. A bare total says how much work there is but nothing about how
+  much of it is done, which is the question this grid is usually being asked. An empty cell is
+  a channel that brand is not covering.
 - **Content readiness** — the share of rows that have a caption, an asset link and a live post
   link. This is the panel that tells the team what is still outstanding.
 
@@ -617,6 +622,58 @@ tokens; a raw `px` or colour in a rule is the bug.
 Reference screenshots used while building these live in `mock_layouts/` for comparison. They
 are development references only and are not loaded by the site.
 
+### It says it is a mock-up
+
+A modal that has to be acknowledged, raised the first time the mocks are opened — entering the
+day view or the spotlight, however you got there. Both now show real creative in
+platform-accurate chrome, which is exactly what makes them easy to mistake for a proof.
+
+It names the three kinds of "not real" separately, because they are not equally provisional:
+the engagement figures are **invented outright**, the layouts are **approximations**, and the
+creative is **whatever the Drive link holds today**.
+
+Shown **once per page load**, and deliberately not remembered beyond it. A reload is a new
+viewing, and anyone about to put this in front of a client has almost certainly just opened it
+fresh — persisting the click would mean the person who most needs to see it never does. Within
+a session it never reappears. `Escape` and `Enter` both count as acknowledging it; a dialog
+that cannot be dismissed from the keyboard is worse than one that can.
+
+It sits above the spotlight, since it can be raised from inside it.
+
+### The real creative
+
+Posts draw the **actual assets** out of Drive, not only the CSS placeholders. The file ids come
+from `Drive Folder File List` (or from `Files Chip URL` when that points at a single file), and
+each is requested from Drive's thumbnail endpoint.
+
+Three things about that are worth knowing before touching it:
+
+- **`referrerpolicy="no-referrer"` is not optional.** Drive refuses the request when it carries
+  a `Referer` from an origin it does not recognise — every image 403s from `localhost` or any
+  non-Google host — and the whole page falls back to placeholders. Suppress the header and the
+  same URL serves the asset. This is the single easiest thing to break here.
+- **The placeholder stays underneath.** A real image is drawn *over* the placeholder that was
+  already in the box, and a delegated `error` listener in `js/main.js` hides any image that
+  fails, revealing what was always there. The endpoint is undocumented and a share link can be
+  made private at any moment; a broken frame in front of a client is worse than a placeholder.
+  The listener is on the capture phase because an image's `error` event does not bubble.
+- **Resolution follows the source.** `sz=w1200` is a request, not a cap — Drive returns up to
+  the asset's own size.
+
+**Several files means an album — but only where a set makes sense.** A post whose folder holds
+more than one image is drawn as an album on Facebook and LinkedIn (a 2×2 grid with `+N`) and as
+a swipeable carousel on Instagram, with the real slide count.
+
+That applies to a **Static Post** that turned out to have several images, and to any row
+explicitly marked **Album**. It does *not* apply to a Story, a Reel, a GIF or a UGC share: a
+Story with three files in its folder is still a story, and those extra files are versions,
+sizes and re-cuts, not slides anybody will swipe through. One predicate, `isImageSet` in
+`js/render-post.js`, decides this for both the media builder and the Instagram carousel, so the
+two can never disagree about the same post.
+
+A row with nothing attached still renders from its declared type, so an Album with no assets
+yet still looks like one.
+
 **Shared behaviour**
 
 - Every post carries the **same header strip**, mock or simple card alike: platform logo and
@@ -625,6 +682,11 @@ are development references only and are not loaded by the site.
 - Clicking the media or the page name opens the **Post Link**; if the row has none, it opens
   the **Files Chip URL** instead. If the row has neither, the element is inert and does not
   pretend to be clickable.
+- **Post Link can hold more than one URL.** A crosspost carries one per platform in the same
+  cell, so the Facebook mock opens the Facebook post and the Instagram mock the Instagram one,
+  matched by hostname. Links are *extracted* from the cell rather than assumed to be its whole
+  contents — somebody occasionally leaves feedback in there, and a paragraph of notes must
+  never end up as an `href`.
 - **Clicking a caption copies it** - the whole thing, line breaks and emoji intact - and a
   "Copied to clipboard" confirmation pops out of the middle of the screen. Links inside the
   caption still behave as links.
@@ -634,7 +696,13 @@ are development references only and are not loaded by the site.
 - Hashtags, `@mentions` and links are all coloured **blue**, the way the real platforms colour
   them, and both shades adapt to the theme. Bare links such as `bit.ly/FUNaloMAX` are detected
   even without `https://`.
-- Long captions clamp with a **See more** toggle.
+- Long captions clamp with a **See more** toggle — but only the ones that are actually clipped.
+  Whether a caption overflows depends on how it wraps at the width it ends up with, which
+  differs between a 4:5 Instagram mock, a 16:9 X card, a 300px phone screen and the same post
+  again inside the spotlight, so it cannot be answered while building the markup. The button is
+  emitted hidden and `js/captions.js` measures each caption after layout and reveals only the
+  ones with something to reveal. Re-checked on resize and once the web font lands, since both
+  change how text wraps.
 - **Notes/Comments** render as a mock comment under the post, labelled `Internal note` and
   styled apart from the engagement figures so a scheduling remark is never mistaken for real
   audience activity.
@@ -660,7 +728,14 @@ only like, comment and repost carry a count. The reactions are LinkedIn's own si
 Celebrate, Support, Love, Insightful, Funny — with three drawn per post from the same seed
 everything else uses, so they never reshuffle.
 
-**TikTok** and **YouTube Shorts** are not cards at all — they are **phone screens**. The
+**TikTok** has two layouts, because the app does. A video goes in the **feed** chrome described
+below. Anything still is a **photo post** (reference: `mock_layouts/tiktok_post.png`), which is
+a different screen entirely: light rather than black, the image contained rather than bled to
+the edges with carousel dots under it, the channel and its sound in a top bar with a Follow
+pill, and the actions along the bottom beside an "Add comment" field. Drawing a static post in
+the video chrome would be a picture of the wrong screen.
+
+**TikTok** (video) and **YouTube Shorts** are not cards at all — they are **phone screens**. The
 creative fills a 9:16 display and everything else floats on top of it: a status bar, the feed
 chrome, a right-hand rail of actions with their counts, the handle and caption bottom-left, and
 the app's own bottom navigation. Drawing them as cards would be a picture of the wrong thing.
@@ -736,6 +811,7 @@ js/
   render-calendar.js    the month grid
   render-dayview.js     the rail and day columns
   render-post.js        captions, media, notes, the simple card
+  captions.js           reveals "See more" only where a caption is really clipped
   mocks.js              the one registry mapping a platform to its renderer
   mock-facebook.js      |
   mock-instagram.js     |

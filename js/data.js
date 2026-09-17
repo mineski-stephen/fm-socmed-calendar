@@ -6,14 +6,14 @@
    ========================================================================== */
 
 import {
-  CSV_URL, REQUIRED_COLUMNS,
+  CSV_URL, REQUIRED_COLUMNS, DRIVE_IMG, MAX_DRIVE_IMAGES,
   BRAND_META, BRAND_FALLBACK, BRAND_ALIASES,
   PLATFORM_META, PLATFORM_FALLBACK, PLATFORM_ALIASES,
   TYPE_META, TYPE_FALLBACK, TYPE_ALIASES, EXT_HINTS,
   STATUS_META, STATUS_FALLBACK, STATUS_ALIASES,
   FB_REACTS, LI_REACTS, CAROUSEL_DEFAULT,
 } from './config.js';
-import { parseCSV, resolveColumns, rowsToRecords } from './csv.js';
+import { parseCSV, resolveColumns, rowsToRecords, findColumnByValue } from './csv.js';
 import {
   parseSheetDate, parseSheetTime, makeLocalDate, dateKeyOf, monthKeyOf,
   fmtTime, fmtLongDate, fmtShortDate, fmtSlashDate, relativeLabel, dowName,
@@ -58,6 +58,22 @@ export async function loadPosts({ bust = false } = {}) {
   }
 
   const columns = resolveColumns(rows[0]);
+
+  /*
+   * The date column is the one the whole page hangs off, and it is the one
+   * most likely to lose its header: blank cell A1 in the sheet and Google's
+   * CSV export calls it "Column 1", which matches no alias. Rather than reject
+   * a sheet whose data is perfectly intact, look for the column that actually
+   * holds dates. Only the date is worth rescuing this way - it is the one
+   * field with a distinctive enough shape to identify by sight.
+   */
+  if (!('date' in columns)) {
+    const at = findColumnByValue(rows, (v) => !!parseSheetDate(v), {
+      skip: Object.values(columns),
+    });
+    if (at !== -1) columns.date = at;
+  }
+
   const missing = REQUIRED_COLUMNS.filter((f) => !(f in columns));
   if (missing.length) {
     throw new DataError(
@@ -121,6 +137,67 @@ function inferTypeFromFiles(files) {
 
 /* ------------------------------ normalise --------------------------------- */
 
+/* ---------------------------------------------------------------------------
+   Post Link, which is not always one link.
+
+   A crosspost carries one URL per platform in the same cell, separated by
+   newlines. The cell is also, occasionally, a paragraph of feedback with no
+   URL in it at all - so the links are EXTRACTED rather than assumed, and a
+   cell with none yields nothing.
+   ------------------------------------------------------------------------- */
+
+const LINK_HOSTS = [
+  [/(^|\.)facebook\.com$|(^|\.)fb\.(com|watch)$/, 'facebook'],
+  [/(^|\.)instagram\.com$/,                        'instagram'],
+  [/(^|\.)tiktok\.com$/,                           'tiktok'],
+  [/(^|\.)youtube\.com$|(^|\.)youtu\.be$/,         'youtube'],
+  [/(^|\.)linkedin\.com$|(^|\.)lnkd\.in$/,         'linkedin'],
+  [/(^|\.)(x|twitter)\.com$/,                      'x'],
+];
+
+function postLinksOf(raw) {
+  const all = String(raw || '').match(/https?:\/\/[^\s<>"')]+/g) || [];
+  const byPlatform = {};
+
+  for (const url of all) {
+    let host = '';
+    try { host = new URL(url).hostname.toLowerCase(); } catch { continue; }
+    const hit = LINK_HOSTS.find(([re]) => re.test(host));
+    // First one wins: if a cell somehow holds two Facebook links, the one
+    // written first is the post and the rest are almost certainly a repost.
+    if (hit && !byPlatform[hit[1]]) byPlatform[hit[1]] = url;
+  }
+  return { all, byPlatform };
+}
+
+/* ---------------------------------------------------------------------------
+   The real creative.
+
+   The sheet's folder-listing column holds every file inside the folder that
+   Files Chip URL points at; a row whose Files Chip URL is a single file has no
+   listing but is itself an image. Both reduce to Drive file ids, which is all
+   the thumbnail endpoint needs.
+   ------------------------------------------------------------------------- */
+
+const DRIVE_ID = /\/file\/d\/([\w-]{20,})|[?&]id=([\w-]{20,})/g;
+
+function driveIdsIn(text) {
+  const out = [];
+  for (const m of String(text || '').matchAll(DRIVE_ID)) {
+    const id = m[1] || m[2];
+    if (id && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
+function driveImagesOf(listCell, filesUrl) {
+  const ids = driveIdsIn(listCell);
+  // The listing is the richer source, so it wins. A row whose Files Chip URL
+  // is a single file has no listing, and that one file is the asset.
+  if (!ids.length) ids.push(...driveIdsIn(filesUrl));
+  return ids.slice(0, MAX_DRIVE_IMAGES).map((id) => ({ id, src: DRIVE_IMG(id) }));
+}
+
 function normalise(rec) {
   const dp = parseSheetDate(rec.date);
   if (!dp) return null;                   // a row with no readable date cannot be placed
@@ -149,8 +226,10 @@ function normalise(rec) {
 
   const caption = rec.caption || '';
   const notes = (rec.notes || '').trim();
-  const postLink = (rec.link || '').trim();
   const filesUrl = (rec.filesUrl || '').trim();
+
+  const links = postLinksOf(rec.link);
+  const images = driveImagesOf(rec.driveList, filesUrl);
 
   const deadlineParts = parseSheetDate(rec.deadline);
 
@@ -193,12 +272,28 @@ function normalise(rec) {
     captionIsLong: caption.length > 200 || caption.split('\n').length > 5,
     notes,
     hasNotes: !!notes,
-    postLink,
+
+    /*
+     * Post Link can hold one URL, several (a crosspost carries one per
+     * platform), or prose - somebody leaves feedback in that cell now and
+     * again. `links.byPlatform` maps facebook/instagram/... to the right URL;
+     * `links.all` is everything found, in the order written. A cell with no
+     * URL in it yields nothing at all, rather than a paragraph of notes being
+     * used as an href.
+     */
+    postLinks: links.byPlatform,
+    postLinkList: links.all,
+    postLink: links.all[0] || '',
     filesUrl,
 
-    // What a click on the media or the page name should open.
-    targetUrl: postLink || filesUrl || null,
-    targetKind: postLink ? 'post' : (filesUrl ? 'files' : null),
+    /*
+     * The real creative, if the sheet knows where it is. Ordered: the folder
+     * listing first, then a direct file link. An empty array is the normal
+     * case for a row nobody has attached anything to, and every renderer falls
+     * back to the drawn placeholder.
+     */
+    images,
+    hasImages: images.length > 0,
 
     incomplete: !platformRaw || !typeRaw,
 

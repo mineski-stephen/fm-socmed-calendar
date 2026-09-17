@@ -17,6 +17,7 @@ import {
 import { applyTheme, setThemePref, watchSystemTheme } from './theme.js';
 import {
   syncShell, syncSyncLabel, renderFilterBar, renderStatus, renderAlert, toast,
+  maybeShowMockNotice, closeMockNotice, mockNoticeOpen,
 } from './render-shell.js';
 import { renderCalendar, resetCalendarCache } from './render-calendar.js';
 import {
@@ -28,6 +29,7 @@ import { initDayRail, bindCarousels, setCarousel } from './interactions.js';
 import { getOverdue, getUpcoming, expandByPlatform, getByDay } from './selectors.js';
 import * as lightbox from './lightbox.js';
 import { entryKey, captionKey } from './render-post.js';
+import { syncCaptionMore, recheckCaptionsOnFontLoad } from './captions.js';
 
 const SCOPE = { SHELL: 1, FILTERS: 2, VIEW: 4, ALL: 7 };
 let pending = 0, queued = false;
@@ -108,10 +110,20 @@ function render(scope) {
         }
       }
       bindCarousels(container, state.carousels);
+      // Covers every way into this view - the tab, a calendar day, a deep link
+      // - rather than being wired to each of them separately.
+      maybeShowMockNotice();
     } else {
       renderStats($('#view-stats'));
     }
   }
+  /*
+   * Whether a caption is clipped can only be known once it has been laid out,
+   * so the "See more" controls are settled here rather than while building the
+   * markup. Strips that hydrate later do their own; this covers everything
+   * drawn in this pass.
+   */
+  syncCaptionMore();
   syncHash();
 }
 
@@ -354,6 +366,7 @@ const ACTIONS = {
     const at = all.findIndex((e) => entryKey(e.post, e.platformKey) === wanted);
     if (at < 0) return;
     lightbox.open([all[at]], 0, dayTitle(all[at].post.dateKey));
+    maybeShowMockNotice();
   },
 
   /**
@@ -371,7 +384,10 @@ const ACTIONS = {
     if (only) list = list.filter((e) => e.platformKey === only);
     if (!list.length) return;
     lightbox.open(list, 0, dayTitle(key));
+    maybeShowMockNotice();
   },
+
+  'dismiss-mocknote'() { closeMockNotice(); },
 
   'lightbox-close'() { lightbox.close(); },
   'lightbox-prev'() { lightbox.step(-1); },
@@ -631,6 +647,28 @@ function afterMonthChange() {
 
 /* ------------------------------ delegation --------------------------------- */
 
+/*
+ * Real creative that did not arrive.
+ *
+ * Every Drive image is drawn over the placeholder that was already in the box,
+ * so hiding a failed one is the whole fallback - there is nothing to swap in.
+ * That matters because the endpoint behind these is undocumented, a share link
+ * can be made private at any moment, and a broken frame in front of a client
+ * is worse than a drawn placeholder.
+ *
+ * Captured rather than bubbled: an image's error event does not bubble, but it
+ * does propagate down the capture phase, so one listener covers every image
+ * the app will ever draw - including the ones inside the spotlight, which
+ * lives outside all three views.
+ */
+document.addEventListener('error', (e) => {
+  const el = e.target;
+  if (el instanceof HTMLImageElement && el.classList.contains('ph__img')) {
+    el.hidden = true;
+  }
+}, true);
+
+
 document.addEventListener('click', (e) => {
   // An open filter dropdown closes on any click outside itself.
   if (state.openFacet && !e.target.closest('.facet')) {
@@ -663,6 +701,18 @@ document.addEventListener('change', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
+  /*
+   * The mock-up notice is on top of everything, including the spotlight, so it
+   * takes Escape first - otherwise Escape would close the overlay behind it and
+   * leave the dialog floating over the day view. Escape counts as
+   * acknowledging it: a modal you cannot dismiss from the keyboard is worse
+   * than one that can be.
+   */
+  if (mockNoticeOpen()) {
+    if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); closeMockNotice(); }
+    return;
+  }
+
   // While the overlay is up it owns Escape and the arrow keys; letting them
   // through would step the rail behind it.
   if (lightbox.handleKey(e)) return;
@@ -720,7 +770,12 @@ function boot() {
     rail.syncBar?.();
   });
 
+  recheckCaptionsOnFontLoad();
+
   window.addEventListener('resize', () => {
+    // A narrower card wraps a caption differently, so a "See more" that was
+    // unnecessary a moment ago may be needed now, and the other way round.
+    syncCaptionMore();
     if (state.view !== 'day') return;
     // sizeRail divides the new width into whole strips, so this is what keeps
     // a resized window from leaving a sliced-off column at each edge.

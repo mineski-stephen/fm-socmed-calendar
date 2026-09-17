@@ -120,7 +120,7 @@ export function renderStats(container) {
         { label: 'Not posted', value: s.shown - s.posted, hue: 'var(--accent)' },
       ]), true),
 
-    card('Brand \u00d7 platform', 'Which brand covers which channel',
+    card('Brand \u00d7 platform', 'Posted against planned, per channel',
       matrixHTML(s), true),
 
     card('Content readiness',
@@ -170,9 +170,15 @@ function matrixHTML(s) {
     const b = brandMeta(bk);
     const cells = platforms.map((p) => {
       const n = s.matrix.get(bk)?.get(p) || 0;
+      if (!n) return `<td><span class="matrix__n matrix__n--zero">–</span></td>`;
+      const done = s.matrixPosted.get(bk)?.get(p) || 0;
       const w = Math.round((n / max) * 65);
-      return `<td><span class="matrix__n${n ? '' : ' matrix__n--zero'}" style="--w:${w}">` +
-             `${n || '\u2013'}</span></td>`;
+      // Shipped against planned. A bare total says how much work there is but
+      // nothing about how much of it is done, which is the question this grid
+      // is usually being asked.
+      return `<td><span class="matrix__n" style="--w:${w}" ` +
+             `title="${escapeHtml(`${done} of ${n} posted`)}">` +
+             `<b>${done}</b><i>/${n}</i></span></td>`;
     }).join('');
     // placements, not rows: a crosspost contributes a count to two columns,
     // so summing rows is the only total that reconciles with the cells

@@ -183,13 +183,19 @@ export function getStats() {
   // row count. That is the honest answer to "how many Instagram posts?".
   const byPlatform = new Map();
   const matrix = new Map();
+  // Shipped placements, counted the same way, so a cell can read "7 of 11"
+  // rather than a total that says nothing about progress.
+  const matrixPosted = new Map();
   let placements = 0;
   for (const p of shown) {
     if (!matrix.has(p.brandKey)) matrix.set(p.brandKey, new Map());
+    if (!matrixPosted.has(p.brandKey)) matrixPosted.set(p.brandKey, new Map());
     const row = matrix.get(p.brandKey);
+    const done = matrixPosted.get(p.brandKey);
     for (const pk of visiblePlatforms(p)) {
       byPlatform.set(pk, (byPlatform.get(pk) || 0) + 1);
       row.set(pk, (row.get(pk) || 0) + 1);
+      if (p.statusKey === 'posted') done.set(pk, (done.get(pk) || 0) + 1);
       placements += 1;
     }
   }
@@ -248,6 +254,7 @@ export function getStats() {
     byStatus: orderedEntries(byStatus, STATUS_ORDER),
     byDate,
     matrix,
+    matrixPosted,
     perDay,
     monthKey: mk,
     posted,

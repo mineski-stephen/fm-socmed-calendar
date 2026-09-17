@@ -26,6 +26,7 @@ import { escapeHtml, clamp, prefersReducedMotion } from './utils.js';
 import { brandMeta } from './data.js';
 import { postHeaderHTML, noteHTML, simpleCardHTML, withCaptionScope } from './render-post.js';
 import { mockFor } from './mocks.js';
+import { syncCaptionMore } from './captions.js';
 
 /** Caption expansion inside the overlay is stored under this scope. */
 export const SCOPE = 'lb';
@@ -88,6 +89,10 @@ function slideHTML(entry) {
  * already fits is left at 1 rather than being scaled up into a blurry poster.
  */
 function fitSlide(slide) {
+  // Measured before the scale is worked out: revealing a "See more" adds a
+  // line, and the fit has to account for the height the post really ends up.
+  syncCaptionMore(slide);
+
   const fitbox = slide.querySelector('.lb__fitbox');
   const fit = slide.querySelector('.lb__fit');
   const caption = slide.querySelector('.lb__caption');

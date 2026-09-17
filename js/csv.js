@@ -100,6 +100,44 @@ export function resolveColumns(headerRow) {
   return index;
 }
 
+/* ---------------------------------------------------------------------------
+   Finding a column by what is IN it, when its header no longer says.
+
+   HEADER_ALIASES survives a column being renamed to something recognisable or
+   moved somewhere else. It cannot survive the header being blanked: Google's
+   CSV export then emits a placeholder like "Column 1", which matches no alias,
+   and the whole sheet is rejected for a missing required column - which is
+   exactly what happened the first time somebody cleared cell A1.
+
+   The dates are still sitting in the column underneath. So when the name is no
+   help, look for the column whose VALUES parse, and use that. A column is only
+   accepted on a clear majority, so this can never latch onto a stray date in a
+   notes field.
+   ------------------------------------------------------------------------- */
+export function findColumnByValue(rows, test, { min = 0.6, skip = [] } = {}) {
+  if (rows.length < 2) return -1;
+  const body = rows.slice(1, 60);
+  const width = Math.max(...rows.map((r) => r.length));
+
+  let best = -1;
+  let bestScore = 0;
+  for (let c = 0; c < width; c++) {
+    if (skip.includes(c)) continue;
+    let filled = 0;
+    let hits = 0;
+    for (const row of body) {
+      const v = (row[c] ?? '').trim();
+      if (!v) continue;
+      filled += 1;
+      if (test(v)) hits += 1;
+    }
+    if (filled < 3) continue;
+    const score = hits / filled;
+    if (score >= min && score > bestScore) { bestScore = score; best = c; }
+  }
+  return best;
+}
+
 /**
  * Turn data rows into objects keyed by our canonical field names.
  * A column the sheet does not have yields '' rather than throwing, and a row

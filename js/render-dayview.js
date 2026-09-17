@@ -22,6 +22,7 @@ import {
   simpleCardHTML, platformMark, postHeaderHTML, noteHTML, entryKey,
 } from './render-post.js';
 import { emptyViewHTML } from './render-shell.js';
+import { syncCaptionMore } from './captions.js';
 import { mockFor } from './mocks.js';
 
 let builtKey = '';
@@ -176,6 +177,7 @@ function hydrate(strip) {
   strip.querySelector('.strip__body').innerHTML = stripBodyHTML(posts, strip.dataset.only || '');
   strip.dataset.hydrated = '1';
   syncInert(strip);
+  syncCaptionMore(strip);
 }
 
 /**
@@ -275,6 +277,7 @@ function repaintStrip(strip) {
   strip.dataset.hydrated = '1';
   strip.classList.toggle('strip--lensed', !!only);
   syncInert(strip);   // the header element was replaced, so re-mark it
+  syncCaptionMore(strip);
 }
 
 /**
