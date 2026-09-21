@@ -16,15 +16,18 @@ export const state = {
   // it supports the tracker rather than gating it.
   followers: null,
   /*
-   * Which platforms the follower chart is showing. Empty means all, like
-   * every other filter here. Its own set rather than the filter bar's: that
-   * one narrows POSTS, and the chips on the card are the only control for
-   * the chart, so the two must not silently disagree.
+   * Which accounts each follower chart is showing, keyed by platform, since
+   * every platform gets its own chart with its own filter. Empty or missing
+   * means all of them, like every other filter here.
+   *
+   * Per chart rather than one set across all of them: hiding a brand's
+   * backup page where it competes with the main one on Facebook should not
+   * also hide that brand from Instagram, where there is only one account.
+   *
+   * Deliberately not the filter bar's platform filter either - that one
+   * narrows POSTS, and these controls are the only ones for these charts.
    */
-  followerPlatforms: new Set(),
-  /* The same, for accounts. The two narrow the chart independently: a line
-     survives only if its platform and its account are both showing. */
-  followerAccounts: new Set(),
+  followerAccounts: new Map(),
   fingerprint: '',        // hash of the raw CSV, to spot a no-op refresh
   syncedAt: 0,
   refreshing: false,

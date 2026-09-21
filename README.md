@@ -180,69 +180,54 @@ So FUNalo MAX's Facebook figure comes from the backup page (7,800 against the ma
 parenthetical is stripped before the brand lookup rather than the name being special-cased, so
 the next backup or regional account resolves on its own.
 
-**The chart** plots one line per **account and platform** — "Solaire Online on Instagram" —
-which is the grain the numbers are collected at. **Colour is the platform** and **shape is the
-account**: every Instagram line is pink, and every line belonging to one page carries the same
-marker whichever channel it is, so you can follow either question through the chart. Shape
-also survives a greyscale print and red-green colourblindness, which a second shade of pink
-would not.
+**One small chart per platform**, each scaled to its own numbers. A single combined chart
+could not be read: Facebook has two hundred times X's following, so a shared axis pinned every
+small channel to the floor, and a dozen lines in one frame needed three lanes of labels to say
+which was which. Split apart, X's chart tops out at 300 and an account with fourteen followers
+is finally visible.
 
-Summing an account across its platforms, which is what this card used to do, hides the thing
-people come to it for: a page can be adding followers on TikTok while losing them on Facebook,
-and one total line says neither.
+Within a chart the platform is a given, so what varies is the **account**: each gets its own
+colour, and every line is drawn the same way — solid, with round markers. Earlier versions
+varied marker shape and dash pattern as well, because colour was spoken for by the platform
+and several lines had to share it; once every line can have a colour of its own, a second
+channel saying the same thing is only noise.
 
-**Both keys above the chart are also its filters** — one control per visual channel, so
-narrowing the chart and reading its legend are the same gesture. The platform chips carry the
-exact colour of that platform's lines; the account rows carry its marker shape. Click to
-isolate, click several to compare, `Show all` to go back. A line is drawn only if **both** its
-platform and its account are showing.
+Those colours come from `--acc-0` … `--acc-5` in `css/tokens.css`, handed out by an account's
+position in the sheet rather than taken from its brand — a brand can own a page *and* its
+backup, and the two land on the same chart, so brand colour would draw them as one. An
+account keeps its colour across every chart, so FUNalo MAX is the same blue on Facebook as on
+TikTok.
 
-This matters more than it sounds: Facebook dwarfs every other channel here, so with everything
-shown a page with forty YouTube subscribers sits on the axis floor. Hiding Facebook rescales
-the chart and makes it readable.
+Unlike the brand and platform hues these are **not** identity colours — nobody owns them, they
+only have to be distinguishable — so they flip with the theme, and that is what keeps them
+legible. Each carries a value label at 11px bold as well as its line, which is small text by
+WCAG's reckoning, so every one is the most vivid of its hue that clears **4.6:1** against that
+theme's surface: 4.63–8.16:1 on the light card, 4.65–10.35:1 on the dark one. Keep that floor
+if you retune them; the whole Stats tab is built on it.
 
-The two keys **cross-filter each other's figures**. Pick one account and the platform chips
-drop to that account's own numbers; pick one platform and the account rows drop to their
-figures on it. Each is narrowed by the *other* filter but not by itself, so a switched-off
-chip or row still says what turning it back on would get you.
+**Each chart's account key is also its filter**, and each chart keeps its own. One control per
+chart, so narrowing it and reading its legend are the same gesture; and hiding a brand's
+backup page where it competes with the main one on Facebook does not hide that brand from
+Instagram, where there is only one account. `All` clears one chart's filter.
 
-Every account in the sheet stays listed, including any with nothing on the platforms currently
-showing — those read `–` and are not clickable. A key that dropped rows as you filtered would
-be a filter you could switch off but not back on.
+A row's figure is that account's own, so a switched-off row still says what turning it back on
+would get. The figure in the head is the showing accounts summed, so it describes the chart as
+drawn. The roster comes from every week rather than the latest one: an account measured in
+March and missed in April still belongs to that platform, and dropping it from the filter
+would be a switch you could turn off but not back on.
 
-These chips are the only control for this card — the page's own Platform filter narrows
-*posts*, and having it silently narrow this chart too would make the keys disagree with the
-plot.
+**Every dot carries its value, captioned with the account** it belongs to, in that account's
+colour. Where several
+labels want the same height, they are dealt into lanes side by side and only nudged vertically
+within a lane — dealt round-robin down the sorted column, so each lane holds every nth label
+and most sit at exactly their own dot's height. The dot never moves; where a label had to, a
+faint **leader line** in the series colour elbows out at the dot's height and turns to meet
+it. Lane width is computed from the captions themselves, about 5.2px per character at the
+caption's size, checked against what the browser renders.
 
-**Every dot carries its value, captioned with whose it is** — `7,800` over
-`FUNalo MAX (Backup) · Facebook`. Colour and shape already encode both of those; spelling
-them out is what lets a label be read on its own instead of matched back to two keys.
-
-Lane width is computed from the captions themselves rather than fixed, since they are as long
-as the account and platform names happen to be — about 5.2px per character at the caption's
-size, checked against what the browser renders. A fixed width would either waste the plot or
-let one lane's text run into the next.
-
-On a linear axis most dots land near the floor — Facebook has 7,800 followers where X has 14
-— so a dozen labels want the same twenty pixels. Rather than stack them in one column and
-spread the stack, which ends with every label a long way from its dot, they are **dealt into
-lanes side by side** and only nudged vertically within a lane. Dealt round-robin down the
-sorted column, so each lane holds every nth label and its members start out n apart in height:
-most then sit at exactly their own dot's height, and half of them need no correction at all.
-
-The dot never moves. Where a label still had to, a faint **leader line** in the series colour
-elbows out at the dot's height and turns to meet it, and the label's halo punches a gap in any
-leader passing behind it. A column only gets labels if there is at least one lane's width of
-room before the next reading; the last reading turns inward, where the whole plot is free to
-its left.
-
-Between the chips and the chart, each account's current standing and what it did since its
-previous reading, **totalled over the visible platforms** so the figures match what is
-plotted. Both keys sit above the plot — one per visual channel, colour and shape — so the
-chart is read with its whole legend already in hand. Those changes are compared week by week
-rather than by pairing up the last two points of each line: a channel added halfway through
-has fewer readings than its neighbours, and pairing by position would difference two different
-weeks.
+Changes are compared week by week rather than by pairing up the last two points of each line:
+an account added halfway through has fewer readings than its neighbours, and pairing by
+position would difference two different weeks.
 
 The figure beside a brand in the grid below is always its **whole** standing, across every
 platform, whatever this card is filtered to — it belongs to a different card and its tooltip
@@ -387,8 +372,13 @@ A **red dot** on the Refresh button shows whenever a read is actually in flight,
 minute poll included, so there is always a visible sign that the page is talking to Google.
 
 The **Refresh** button (or `R`) does the same thing on demand and tells you what it found.
-Either way the request carries a cache-busting parameter: `no-store` alone only bypasses the
-*browser* cache, while Google's own edge keeps serving a cached copy for several minutes.
+
+**Every read carries a cache-busting parameter**, the first one included. `no-store` alone
+only bypasses the *browser* cache, while Google's own edge keeps serving a cached copy for
+several minutes after a cell changes — so without the param the very first paint can be the
+one showing yesterday's sheet, and it stays wrong until the minute poll comes round. That is
+the least forgiving moment for it, since somebody who has just edited the sheet and reloaded
+concludes the page is broken.
 
 Everything you were looking at survives a refresh - active filters, collapsed posts, the
 month, the selected day and the rail's scroll position. If a refresh fails, the data on screen
@@ -752,8 +742,8 @@ somebody has to go and fill in.
   guesswork and the split is the whole point of the chart. The colour of that in-bar number
   comes from `--on-posted`, which flips with the theme: `--st-posted` is a dark green on the
   light theme and a light one on dark, so a single fixed colour is unreadable on one of them.
-- **Follower growth** — the weekly follower count per account, from the workbook's second tab.
-  See [Follower counts](#follower-counts).
+- **Follower growth** — one small chart per channel of the weekly follower count, from the
+  workbook's second tab. See [Follower counts](#follower-counts).
 - **Brand x platform** — a heat grid reading **posted against planned**: a cell showing `7/11`
   is seven of eleven shipped. A bare total says how much work there is but nothing about how
   much of it is done, which is the question this grid is usually being asked. An empty cell is

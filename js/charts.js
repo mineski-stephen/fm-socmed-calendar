@@ -209,29 +209,25 @@ export function lines(series, {
     <text x="${xAt(i)}" y="${height - 10}" text-anchor="middle" class="t-day">${escapeHtml(l)}</text>`).join('');
 
   /*
-   * Two visual channels, one meaning each. COLOUR is the series' own hue - on
-   * the follower chart, the platform. SHAPE and dash pattern are `variant`,
-   * the second dimension - there, which account.
+   * One visual channel: colour. Each series has its own hue and everything
+   * else about it is identical - a solid line and a round marker.
    *
-   * Splitting them this way is what lets four accounts on six platforms be
-   * read at all: every Instagram line is pink, and every line belonging to
-   * one account carries the same marker, so you can follow either question
-   * through the chart. Shape also survives greyscale and colourblindness,
-   * which a second shade of pink would not.
+   * Earlier versions varied marker shape and dash pattern too, because the
+   * colour was spoken for by something else and several lines shared it.
+   * Once every line can have a colour of its own, a second channel saying
+   * the same thing is just noise on the plot.
    */
   const plots = series.map((s) => {
     if (!s.points.length) return '';
-    const v = s.variant || 0;
     const path = s.points.map((p, k) =>
       `${k ? 'L' : 'M'}${xAt(p.i).toFixed(1)} ${yAt(p.y).toFixed(1)}`).join(' ');
-    const dash = DASHES[v % DASHES.length];
     const line = s.points.length > 1
       ? `<path d="${path}" fill="none" stroke="${s.hue}" stroke-width="2.25"
-               ${dash ? `stroke-dasharray="${dash}"` : ''}
                stroke-linecap="round" stroke-linejoin="round"/>` : '';
     const dots = s.points.map((p) => `<g>
         <title>${escapeHtml(p.tip || `${s.label}: ${fmt(p.y)}`)}</title>
-        ${marker(v, xAt(p.i), yAt(p.y), s.hue)}
+        <circle cx="${xAt(p.i).toFixed(1)}" cy="${yAt(p.y).toFixed(1)}" r="4.4"
+                fill="${s.hue}" stroke="var(--surface)" stroke-width="1.6"/>
       </g>`).join('');
     return line + dots;
   }).join('');
@@ -345,34 +341,6 @@ export function lines(series, {
     return `<path class="t-lead" stroke="${hue}" d="M${from.toFixed(1)} ${dotY.toFixed(1)}`
          + `L${bend.toFixed(1)} ${dotY.toFixed(1)}L${to.toFixed(1)} ${labelY.toFixed(1)}"/>`;
   }
-}
-
-/*
- * The four marker shapes, in the order variants are handed out. Four because
- * that is how many stay tellable apart at 9px; a fifth series of the same
- * colour cycles back to the circle, and its tooltip is what distinguishes it.
- */
-const DASHES = ['', '7 5', '2 4', '11 4 2 4'];
-
-function marker(v, x, y, hue) {
-  const cx = +x.toFixed(1), cy = +y.toFixed(1);
-  const common = `fill="${hue}" stroke="var(--surface)" stroke-width="1.6"`;
-  switch (v % 4) {
-    case 1:  // square
-      return `<rect x="${cx - 4.2}" y="${cy - 4.2}" width="8.4" height="8.4" rx="1" ${common}/>`;
-    case 2:  // triangle
-      return `<path d="M${cx} ${cy - 5.2}L${cx + 4.8} ${cy + 3.6}L${cx - 4.8} ${cy + 3.6}Z" ${common}/>`;
-    case 3:  // diamond
-      return `<path d="M${cx} ${cy - 5.6}L${cx + 5.2} ${cy}L${cx} ${cy + 5.6}L${cx - 5.2} ${cy}Z" ${common}/>`;
-    default:
-      return `<circle cx="${cx}" cy="${cy}" r="4.4" ${common}/>`;
-  }
-}
-
-/** The same shape as an inline HTML bullet, for the key under the chart. */
-export function markerSwatch(v, hue) {
-  return `<svg class="mk" viewBox="0 0 14 14" aria-hidden="true">
-    ${marker(v, 7, 7, hue)}</svg>`;
 }
 
 /** A round number at or above `n`, so the top gridline reads as a number. */

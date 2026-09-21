@@ -170,3 +170,40 @@
 
 /* X's mark is black; it needs a light value on a dark ground. */
 :root[data-theme="dark"] { --pf-x: #e8eaed; }
+
+/* ---------------------------------------------------------------------------
+   Account hues, for the follower charts.
+
+   Handed out by an account's position in the sheet, NOT taken from its brand:
+   a brand can own two accounts - a page and its backup - and they share a
+   chart, so brand colour would draw them as one line. Telling them apart is
+   the whole job here.
+
+   Six, spaced around the wheel. Unlike the brand and platform hues above
+   these are NOT identity colours - nobody owns them, they only have to be
+   distinguishable - so they do flip with the theme, and that is what lets
+   them stay legible.
+
+   Each carries a value label at 11px bold as well as its line, which is
+   small text by WCAG's reckoning and so needs 4.5:1 against the card it sits
+   on. Every value below is the most vivid of its hue that clears 4.6:1
+   against that theme's --surface; the light set measures 4.63-8.16:1 on
+   white and the dark set 4.65-10.35:1 on #191d22. Keep that if you retune
+   them - the whole Stats tab is built on that floor.
+   ------------------------------------------------------------------------- */
+:root {
+  --acc-0: #1871d8;
+  --acc-1: #c55016;
+  --acc-2: #0f855a;
+  --acc-3: #bd19e6;
+  --acc-4: #976b11;
+  --acc-5: #192ee6;
+}
+:root[data-theme="dark"] {
+  --acc-0: #3589e9;
+  --acc-1: #e65e19;
+  --acc-2: #19e69b;
+  --acc-3: #cb4ceb;
+  --acc-4: #e6a219;
+  --acc-5: #717def;
+}

@@ -163,14 +163,6 @@ function onRailDay(key) {
   }, 110);
 }
 
-/** Add or drop one value from a follower filter, then redraw the tab. */
-function toggleFollower(set, value) {
-  if (!value) return;
-  if (set.has(value)) set.delete(value);
-  else set.add(value);
-  scheduleRender(SCOPE.VIEW);
-}
-
 /* --------------------------------- data ----------------------------------- */
 
 /** Enough of the follower data to tell one reading of the tab from another. */
@@ -214,11 +206,19 @@ async function initialLoad() {
   const floor = new Promise((r) => setTimeout(r, LOADER_MIN_MS));
 
   try {
-    // Side by side, not one after the other: the follower tab is a separate
-    // request and there is no reason to make the calendar wait for it.
-    // loadFollowers never rejects, so only the tracker can fail here.
+    /*
+     * Side by side, not one after the other: the follower tab is a separate
+     * request and there is no reason to make the calendar wait for it.
+     * loadFollowers never rejects, so only the tracker can fail here.
+     *
+     * Cache-busted like every other read. `cache: 'no-store'` only defeats
+     * the BROWSER cache; Google's edge goes on serving a copy for minutes
+     * after a cell changes, so without the param the very first paint can be
+     * the one that shows yesterday's sheet - and it stays wrong until the
+     * minute poll comes round, which is the least forgiving moment for it.
+     */
     const [{ posts, fingerprint }, followers] = await Promise.all([
-      loadPosts(), loadFollowers(),
+      loadPosts({ bust: true }), loadFollowers({ bust: true }),
     ]);
     await floor;
     state.followers = followers;
@@ -555,17 +555,23 @@ const ACTIONS = {
   },
 
   /*
-   * The follower chart's two keys, each of which is also a filter: the
-   * platform chips above it and the account rows under them. One control per
-   * visual channel, so narrowing the chart and reading its legend are the
-   * same gesture.
+   * A follower chart's account key, which is also its filter: one control per
+   * chart, so narrowing it and reading its legend are the same gesture.
    */
-  'follower-platform'(el) { toggleFollower(state.followerPlatforms, el.dataset.platform); },
-  'follower-account'(el) { toggleFollower(state.followerAccounts, el.dataset.account); },
+  'follower-account'(el) {
+    const { platform, account } = el.dataset;
+    if (!platform || !account) return;
+    const set = state.followerAccounts.get(platform) || new Set();
+    if (set.has(account)) set.delete(account);
+    else set.add(account);
+    if (set.size) state.followerAccounts.set(platform, set);
+    else state.followerAccounts.delete(platform);
+    scheduleRender(SCOPE.VIEW);
+  },
 
-  'follower-clear'() {
-    state.followerPlatforms.clear();
-    state.followerAccounts.clear();
+  'follower-clear'(el) {
+    if (el.dataset.platform) state.followerAccounts.delete(el.dataset.platform);
+    else state.followerAccounts.clear();
     scheduleRender(SCOPE.VIEW);
   },
 

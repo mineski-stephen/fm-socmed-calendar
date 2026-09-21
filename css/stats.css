@@ -283,98 +283,88 @@
 }
 
 /*
- * The platform legend, which is also the filter.
- *
- * One control rather than a legend beside a filter: the swatch here is the
- * exact colour of that platform's lines, so reading the key and narrowing the
- * chart are the same gesture. Pressed state is carried by the border and the
- * background as well as by opacity, since "dimmed" alone is easy to miss.
+ * One panel per platform: a head, an account key that is also this chart's
+ * filter, and the chart. Small multiples rather than one combined plot -
+ * Facebook has two hundred times X's following, and a shared axis flattened
+ * every small channel to the floor.
  */
-.pfilters {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  margin-bottom: 12px;
+.fpanels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 14px;
 }
-.pfilter {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 10px 4px 7px;
-  border: 1px solid var(--border);
-  border-radius: 99px;
-  background: var(--surface-2);
-  color: var(--text-dim);
-  font: inherit; font-size: var(--st-meta); font-weight: 600;
-  cursor: pointer;
-  opacity: .55;
+.fpanel {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 11px 12px 6px;
+  min-width: 0;
+  /* the platform's own colour, as a quiet spine down the left */
+  border-left: 3px solid var(--pf, var(--border));
 }
-.pfilter:hover { border-color: var(--accent); color: var(--text); opacity: .8; }
-.pfilter.is-on {
-  opacity: 1;
-  color: var(--text);
-  background: var(--surface);
-  border-color: var(--border);
+.fpanel__head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 9px;
 }
-.pfilter__sw {
-  width: 9px; height: 9px; border-radius: 50%;
-  background: var(--text-dim);
-  flex: 0 0 auto;
+.fpanel__logo { width: 19px; height: 19px; border-radius: 50%; flex: 0 0 auto; }
+.fpanel__name {
+  font-size: var(--st-body); font-weight: 700; color: var(--text);
+  margin: 0;
 }
-.pfilter__logo { width: 15px; height: 15px; border-radius: 50%; }
-.pfilter__n {
-  color: var(--text-dim); font-weight: 700;
+.fpanel__n {
+  margin-left: auto;
+  font-size: var(--st-title); font-weight: 700; color: var(--text);
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
-.pfilter.is-on .pfilter__n { color: var(--text); }
-.pfilters .linkbtn { font-size: var(--st-meta); margin-left: 2px; }
-
-/* The marker shape a line carries, repeated in the key so the shapes mean
-   something. Sized to the text it sits beside rather than to the chart. */
-.mk { width: 14px; height: 14px; flex: 0 0 auto; overflow: visible; }
+.fpanel__head .fgrow { margin-left: 0; }
+.fpanel__head .linkbtn { font-size: var(--st-micro); }
 
 /*
- * Current standing per account, and the second of the card's two filters.
+ * The account key, and the panel's filter.
  *
- * Sits between the platform chips and the plot, so both keys are in hand
- * before the chart is read - and since each key is also the control for its
- * own visual channel, narrowing the chart and reading its legend are the
- * same gesture. A row carries its own marker shape for exactly that reason.
+ * Above the chart rather than below it, so the legend is in hand before the
+ * chart is read - and since the key IS the control, narrowing the chart and
+ * reading it are the same gesture. Each row carries its own marker shape for
+ * exactly that reason.
  */
 .flist {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 4px 14px;
-  margin-bottom: 14px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border-soft);
+  display: flex; flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-bottom: 4px;
 }
+/* The round marker a line carries, repeated on its filter chip in the same
+   colour - the one thing tying a chip to its line. */
+.legend__sw--dot { width: 9px; height: 9px; border-radius: 50%; }
+
 .flist__row {
-  display: flex; align-items: center; gap: 8px;
-  font: inherit; font-size: var(--st-body);
+  display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: var(--st-meta);
   text-align: left;
-  padding: 4px 8px;
+  padding: 3px 8px 3px 6px;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: 99px;
   background: none;
   color: inherit;
   cursor: pointer;
-  opacity: .55;
+  opacity: .5;
 }
 .flist__row:hover { border-color: var(--accent); opacity: .85; }
 .flist__row.is-on { opacity: 1; background: var(--surface-2); }
-/* An account with nothing on the platforms currently showing. Listed, so the
-   roster stays stable as you filter, but there is nothing to switch. */
-.flist__row.is-empty {
-  cursor: default; opacity: .4;
-}
-.flist__row.is-empty:hover { border-color: transparent; opacity: .4; }
-.flist__row.is-empty .flist__n { color: var(--text-faint); font-weight: 500; }
 .flist__name {
   color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .flist__n {
-  margin-left: auto; font-weight: 700; color: var(--text);
+  font-weight: 700; color: var(--text);
   font-variant-numeric: tabular-nums;
 }
-.flist .fgrow { margin-left: 0; }
+.flist .fgrow { margin-left: 0; padding: 0 4px; }
+/* An empty panel still needs its filter, so this stays small and quiet. */
+.empty--sm {
+  padding: 18px 10px;
+  font-size: var(--st-meta);
+}
+
 .flist__note {
   margin-top: 12px;
   font-size: var(--st-meta); color: var(--text-dim); line-height: 1.5;

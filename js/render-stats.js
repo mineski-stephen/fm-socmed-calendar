@@ -10,9 +10,9 @@ import { partsFromKey, monthLabel } from './dates.js';
 import { state } from './state.js';
 import { getStats } from './selectors.js';
 import { brandMeta, platformMeta, typeMeta, statusMeta } from './data.js';
-import { barsH, donut, legend, dayColumns, lines, markerSwatch } from './charts.js';
+import { barsH, donut, legend, dayColumns, lines } from './charts.js';
 import {
-  brandGrowth, platformSeries, platformsPresent, platformLatest,
+  brandGrowth, seriesOn, accountsOn, platformsPresent,
 } from './followers.js';
 import { platformMark } from './render-post.js';
 
@@ -127,9 +127,8 @@ export function renderStats(container) {
       ]), true),
 
     card('Follower growth',
-      'Weekly count per account and channel. Colour is the platform, shape is the '
-      + 'account, and both keys below filter the chart — pick any platforms and '
-      + 'accounts to narrow it and rescale the axis.',
+      'One chart per channel, each scaled to its own numbers. The account key above '
+      + 'a chart is also its filter — pick accounts to narrow that chart alone.',
       followersHTML(), true),
 
     card('Brand \u00d7 platform',
@@ -167,6 +166,23 @@ const typeHue = (k) => TYPE_HUES[k] || 'var(--st-unknown)';
 /* ------------------------------- followers --------------------------------- */
 
 const nf = new Intl.NumberFormat('en-US');
+/* One shared empty set, so an unfiltered panel allocates nothing per render. */
+const EMPTY_SET = new Set();
+
+/*
+ * An account's colour on the follower charts, by its position in the sheet.
+ *
+ * Not its brand's colour: a brand can own a page and a backup of that page,
+ * and both land on the same chart, so brand colour would draw them as one.
+ * Telling the lines apart is the job here, and the palette in tokens.css is
+ * picked for exactly that.
+ */
+const ACCOUNT_HUES = 6;
+const accountHue = (acc) => `var(--acc-${acc.idx % ACCOUNT_HUES})`;
+
+/** The round swatch that ties an account's filter chip to its line. */
+const accountDot = (hue) => `<span class="legend__sw legend__sw--dot"
+  style="background:${hue}"></span>`;
 
 const sign = (n) => (n > 0 ? '+' : n < 0 ? '−' : '±');
 const signed = (n) => `${sign(n)}${nf.format(Math.abs(n))}`;
@@ -207,158 +223,131 @@ function growthChip(brandKey) {
 }
 
 /**
- * Follower count, week by week.
+ * Follower count, week by week - one small chart per platform.
  *
- * Colour is the PLATFORM and the marker is the ACCOUNT, because those are the
- * two questions people bring to this chart and neither one is a sub-question
- * of the other: "how is Instagram doing across the brands" and "how is this
- * page doing across its channels". One line per account-and-platform answers
- * both; a line per account, summed, answers neither, since a page adding
- * followers on TikTok while losing them on Facebook looks flat.
+ * One combined chart could not be read. Facebook dwarfs every other channel,
+ * so a shared axis pinned a page with forty YouTube subscribers to the floor,
+ * and a dozen lines in one frame needed three lanes of labels to say which
+ * was which. Split by platform, each chart scales to its own numbers and
+ * carries at most a handful of lines.
  *
- * That is up to twenty-four lines, so the platform chips above the chart are
- * the legend AND the filter - one control, and the colours in it are the
- * colours in the plot. Facebook also dwarfs everything else here, which is
- * the other reason the filter matters: hiding it rescales the axis and makes
- * a channel with forty followers readable.
+ * Within a chart the platform is a given, so the lines are all its colour and
+ * the ACCOUNT is what varies: marker shape, dash pattern, and the caption
+ * under each value. The account key above each chart is also its filter, and
+ * each chart keeps its own - hiding a brand's backup page where it competes
+ * with the main one on Facebook should not hide that brand from Instagram.
  */
 function followersHTML() {
   const data = state.followers;
   if (!data) return '';
   if (!data.weeks.length) {
     return `<div class="empty"><strong>No follower readings yet</strong>
-      Fill in a week on the follower tab and the growth chart appears here.</div>`;
+      Fill in a week on the follower tab and the growth charts appear here.</div>`;
   }
 
-  const picked = state.followerPlatforms;
-  const pickedAccounts = state.followerAccounts;
-  const present = platformsPresent(data);
-  const filtered = picked.size || pickedAccounts.size;
+  const panels = platformsPresent(data).map((pk) => panelHTML(data, pk)).join('');
+  const note = data.weeks.length < 2
+    ? `<p class="flist__note">One reading so far, from ${escapeHtml(data.weeks[0].label)}.
+       Week-on-week growth appears on each chart, and beside each brand in the grid
+       below, as soon as a second week is filled in.</p>`
+    : '';
 
-  /* ---- legend one: the platforms, by colour ---- */
-  const chips = present.map((pk) => {
-    const meta = platformMeta(pk);
-    // Narrowed by the ACCOUNT filter but not by this one, so a chip says
-    // what picking it would get you even while it is switched off.
-    const { total, accounts } = platformLatest(data, pk, pickedAccounts);
-    const on = !picked.size || picked.has(pk);
-    return `<button type="button" class="pfilter${on ? ' is-on' : ''}"
-        data-act="follower-platform" data-platform="${escapeHtml(pk)}"
-        aria-pressed="${on}"
-        title="${escapeHtml(`${meta.label}: ${nf.format(total)} followers across `
-          + `${accounts} account${accounts === 1 ? '' : 's'} - click to show only this platform`)}">
-        <span class="pfilter__sw" style="background:${meta.hue}"></span>
-        ${platformMark(pk, 'pfilter__logo')}
-        <span class="pfilter__name">${escapeHtml(meta.label)}</span>
-        <span class="pfilter__n">${escapeHtml(nf.format(total))}</span>
-      </button>`;
-  }).join('');
+  return `<div class="fpanels">${panels}</div>${note}`;
+}
 
-  const filterBar = `<div class="pfilters" role="group" aria-label="Platforms">
-      ${chips}
-      ${filtered ? `<button type="button" class="linkbtn"
-          data-act="follower-clear">Show all</button>` : ''}
-    </div>`;
+/** The change chip shared by a panel head and its account rows. */
+function deltaChip(d, since, extra = '') {
+  if (d === null) return '<i class="fgrow fgrow--first">first reading</i>';
+  const dir = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+  const arrow = d > 0 ? '▲' : d < 0 ? '▼' : '±';
+  const title = since ? ` title="${escapeHtml(`${signed(d)}${extra} since ${since}`)}"` : '';
+  return `<i class="fgrow fgrow--${dir}"${title}>${arrow} ${nf.format(Math.abs(d))}</i>`;
+}
 
-  /* ---- legend two: the accounts, by marker shape ---- */
-  /*
-   * Every account in the sheet is listed, including any with nothing on the
-   * platforms currently showing. A key that dropped rows as you filtered
-   * would be a filter you could switch off but not back on.
-   *
-   * Each row's figures are narrowed by the PLATFORM filter but not by this
-   * one, for the same reason the chips are: a row has to say what it is
-   * worth while it is switched off.
-   */
-  const rows = data.accounts.map((a) => {
-    const mine = platformSeries(data, picked).filter((s) => s.account.name === a.name);
-    const on = !pickedAccounts.size || pickedAccounts.has(a.name);
-    const hue = a.brandKey ? brandMeta(a.brandKey).hue : 'var(--text-dim)';
+/**
+ * One platform's chart, with its own account key and filter.
+ *
+ * Figures on a row are that account's own, so a switched-off row still says
+ * what turning it back on would get. Figures in the head are the visible
+ * accounts summed, so they describe the chart as drawn.
+ */
+function panelHTML(data, pk) {
+  const meta = platformMeta(pk);
+  const roster = accountsOn(data, pk);
+  const picked = state.followerAccounts.get(pk) || EMPTY_SET;
 
-    if (!mine.length) {
-      return `<span class="flist__row is-empty"
-          title="${escapeHtml(`${a.name} has no count on the platforms showing`)}">
-          ${markerSwatch(a.idx, 'var(--text-faint)')}
-          <span class="flist__name">${escapeHtml(a.name)}</span>
-          <span class="flist__n">–</span></span>`;
-    }
+  // Compared by week rather than by "the last two points": an account added
+  // halfway through has fewer readings, and pairing by position would
+  // difference two different weeks.
+  const weeksOf = (list) =>
+    [...new Set(list.flatMap((sr) => sr.points.map((p) => p.i)))].sort((x, y) => x - y);
+  const sumAt = (list, wi) =>
+    list.reduce((n, sr) => n + (sr.points.find((p) => p.i === wi)?.y || 0), 0);
+  const standing = (list) => {
+    const ws = weeksOf(list);
+    if (!ws.length) return { now: 0, delta: null, since: '' };
+    const now = sumAt(list, ws[ws.length - 1]);
+    const prev = ws[ws.length - 2];
+    return {
+      now,
+      delta: prev === undefined ? null : now - sumAt(list, prev),
+      since: prev === undefined ? '' : data.weeks[prev].label,
+    };
+  };
 
-    /*
-     * Totalled over the VISIBLE platforms, so the figure matches the plot.
-     *
-     * Compared by week rather than by "the last two points of each line": a
-     * platform added halfway through has fewer points than its neighbours,
-     * and pairing them off by position would difference two different weeks.
-     */
-    const weeksWith = [...new Set(mine.flatMap((s) => s.points.map((p) => p.i)))]
-      .sort((x, y) => x - y);
-    const sumAt = (wi) => mine.reduce((n, s) =>
-      n + (s.points.find((p) => p.i === wi)?.y || 0), 0);
-
-    const now = sumAt(weeksWith[weeksWith.length - 1]);
-    const prevWeek = weeksWith[weeksWith.length - 2];
-    const d = prevWeek === undefined ? null : now - sumAt(prevWeek);
-    const dir = d === null ? 'first' : d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
-    const chip = d === null
-      ? '<i class="fgrow fgrow--first">first reading</i>'
-      : `<i class="fgrow fgrow--${dir}">${d > 0 ? '▲' : d < 0 ? '▼' : '±'} `
-        + `${nf.format(Math.abs(d))}</i>`;
-
-    const on2 = mine.map((s) => platformMeta(s.platformKey).label).join(', ');
+  /* ---- the key, which is also the filter ---- */
+  const rows = roster.map((acc) => {
+    const mine = seriesOn(data, pk, new Set([acc.name]));
+    const st = standing(mine);
+    const on = !picked.size || picked.has(acc.name);
     return `<button type="button" class="flist__row${on ? ' is-on' : ''}"
-        data-act="follower-account" data-account="${escapeHtml(a.name)}"
-        aria-pressed="${on}"
-        title="${escapeHtml(`${a.name} on ${on2} - click to show only this account`)}">
-      ${markerSwatch(a.idx, hue)}
-      <span class="flist__name">${escapeHtml(a.name)}</span>
-      <span class="flist__n">${escapeHtml(nf.format(now))}</span>
-      ${chip}
+        data-act="follower-account" data-platform="${escapeHtml(pk)}"
+        data-account="${escapeHtml(acc.name)}" aria-pressed="${on}"
+        title="${escapeHtml(`${acc.name} on ${meta.label} - click to show only this account`)}">
+      ${accountDot(accountHue(acc))}
+      <span class="flist__name">${escapeHtml(acc.name)}</span>
+      <span class="flist__n">${escapeHtml(nf.format(st.now))}</span>
+      ${deltaChip(st.delta, st.since)}
     </button>`;
   }).join('');
 
-  const accountBar = `<div class="flist" role="group" aria-label="Accounts">${rows}</div>`;
-
   /* ---- the plot ---- */
-  const series = platformSeries(data, picked, pickedAccounts).map((s) => ({
-    label: `${s.account.name} on ${platformMeta(s.platformKey).label}`,
-    // Under each value on the plot. Colour and shape already encode both of
-    // these; spelling them out is what lets a label be read on its own
-    // instead of matched back to two keys.
-    caption: `${s.account.name} · ${platformMeta(s.platformKey).label}`,
-    hue: platformMeta(s.platformKey).hue,
-    variant: s.account.idx,
-    points: s.points.map((p) => ({
-      i: p.i, y: p.y,
-      tip: `${s.account.name} · ${platformMeta(s.platformKey).label}
+  const drawn = seriesOn(data, pk, picked);
+  const head = standing(drawn);
+  const body = drawn.length
+    ? lines(drawn.map((sr) => ({
+        label: sr.account.name,
+        // The platform is the panel's own title, so the caption names only
+        // what varies inside it.
+        caption: sr.account.name,
+        hue: accountHue(sr.account),
+        points: sr.points.map((p) => ({
+          i: p.i, y: p.y,
+          tip: `${sr.account.name} · ${meta.label}
 `
-         + `${p.week.label}: ${nf.format(p.y)} followers`,
-    })),
-  }));
+             + `${p.week.label}: ${nf.format(p.y)} followers`,
+        })),
+      })), {
+        width: 460, height: 200,
+        xLabels: data.weeks.map((w) => w.short),
+        fmt: (v) => nf.format(v),
+        labels: true,
+      })
+    : `<div class="empty empty--sm"><strong>No account showing</strong>
+       Pick one above to draw the chart.</div>`;
 
-  if (!series.length) {
-    return filterBar + accountBar + `<div class="empty"><strong>Nothing to show</strong>
-      No account you have picked has a count on the platforms you have picked.</div>`;
-  }
-
-  const note = data.weeks.length < 2
-    ? `<p class="flist__note">One reading so far, from ${escapeHtml(data.weeks[0].label)}.
-       Week-on-week growth appears here, and beside each brand in the grid below,
-       as soon as a second week is filled in.</p>`
-    : '';
-
-  /*
-   * Chips, then the account key, then the plot.
-   *
-   * Both keys sit together above the chart - one per visual channel, colour
-   * and shape - so the chart is read with its whole legend already in hand
-   * rather than halfway down the card.
-   */
-  return filterBar + accountBar + lines(series, {
-    width: 900, height: 250,
-    xLabels: data.weeks.map((w) => w.short),
-    fmt: (v) => nf.format(v),
-    labels: true,
-  }) + note;
+  return `<section class="fpanel" style="--pf:${meta.hue}">
+      <header class="fpanel__head">
+        ${platformMark(pk, 'fpanel__logo')}
+        <h4 class="fpanel__name">${escapeHtml(meta.label)}</h4>
+        <span class="fpanel__n">${escapeHtml(nf.format(head.now))}</span>
+        ${deltaChip(head.delta, head.since, ` on ${meta.label}`)}
+        ${picked.size ? `<button type="button" class="linkbtn"
+            data-act="follower-clear" data-platform="${escapeHtml(pk)}">All</button>` : ''}
+      </header>
+      <div class="flist" role="group" aria-label="${escapeHtml(`${meta.label} accounts`)}">${rows}</div>
+      ${body}
+    </section>`;
 }
 
 /** Brand x platform heat grid — a cheap way to spot an uncovered channel. */

@@ -284,49 +284,47 @@ export function brandGrowth(data, brandKey) {
   };
 }
 
-/** One series per account: its total each week it was measured. */
-export function accountSeries(data) {
-  if (!data) return [];
-  return data.accounts.map((a) => ({
-    label: a.name,
-    brandKey: a.brandKey,
-    nth: a.nth,
-    points: data.weeks.map((w, i) => {
-      const rec = w.by.get(a.name);
-      return rec ? { i, y: rec.total, week: w, byPlatform: rec.byPlatform } : null;
-    }).filter(Boolean),
-  })).filter((s) => s.points.length);
-}
-
 /**
- * One series per account AND platform - "Solaire Online on Instagram" - which
- * is the grain the numbers are actually collected at.
+ * One series per account on ONE platform - the grain the numbers are
+ * collected at, and the grain each chart is drawn at.
  *
- * Summing an account across platforms, the way accountSeries does, hides the
- * thing people come to this chart for: a page can be adding followers on
- * TikTok while losing them on Facebook, and one total line says neither. So
- * the chart colours by PLATFORM and marks by ACCOUNT, and every combination
- * the sheet has a number for gets its own line.
+ * Summing an account across its platforms hides the thing people come to
+ * this for: a page can be adding followers on TikTok while losing them on
+ * Facebook, and one total line says neither. So each platform gets its own
+ * small chart and each account on it gets a line.
  *
- * `platforms` and `accounts` are the visible sets; empty means all, as
- * everywhere else. A line survives only if BOTH of its dimensions do.
+ * `accounts` is the visible set for that chart; empty means all, as
+ * everywhere else.
  */
-export function platformSeries(data, platforms = new Set(), accounts = new Set()) {
+export function seriesOn(data, platformKey, accounts = new Set()) {
   if (!data) return [];
   const out = [];
   for (const a of data.accounts) {
     if (accounts.size && !accounts.has(a.name)) continue;
-    for (const pk of PLATFORM_ORDER) {
-      if (platforms.size && !platforms.has(pk)) continue;
-      const points = [];
-      data.weeks.forEach((w, i) => {
-        const n = w.by.get(a.name)?.byPlatform.get(pk);
-        if (n !== undefined) points.push({ i, y: n, week: w });
-      });
-      if (points.length) out.push({ account: a, platformKey: pk, points });
-    }
+    const points = [];
+    data.weeks.forEach((w, i) => {
+      const n = w.by.get(a.name)?.byPlatform.get(platformKey);
+      if (n !== undefined) points.push({ i, y: n, week: w });
+    });
+    if (points.length) out.push({ account: a, platformKey, points });
   }
   return out;
+}
+
+/**
+ * Every account ever counted on one platform, in sheet order.
+ *
+ * The roster a chart's filter offers, and it comes from every week rather
+ * than the latest one: an account that was measured in March and missed in
+ * April still belongs to that platform, and dropping it from the filter
+ * would be a switch you could turn off but not back on.
+ */
+export function accountsOn(data, platformKey) {
+  const seen = new Set();
+  for (const w of data?.weeks || []) {
+    for (const [name, rec] of w.by) if (rec.byPlatform.has(platformKey)) seen.add(name);
+  }
+  return (data?.accounts || []).filter((a) => seen.has(a.name));
 }
 
 /** Which platforms anybody has ever been counted on, in display order. */
@@ -338,23 +336,3 @@ export function platformsPresent(data) {
   return PLATFORM_ORDER.filter((k) => seen.has(k));
 }
 
-/**
- * Followers on one platform in the latest week.
- *
- * Narrowed by the ACCOUNT filter but not by the platform one, so the number
- * on a platform chip says what picking it would get you - including for the
- * platforms currently switched off, which is the whole point of showing it.
- */
-export function platformLatest(data, platformKey, accounts = new Set()) {
-  const w = data?.weeks[data.weeks.length - 1];
-  if (!w) return { total: 0, accounts: 0 };
-  let total = 0, n = 0;
-  for (const [name, rec] of w.by) {
-    if (accounts.size && !accounts.has(name)) continue;
-    const c = rec.byPlatform.get(platformKey);
-    if (c === undefined) continue;
-    total += c;
-    n += 1;
-  }
-  return { total, accounts: n };
-}
