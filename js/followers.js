@@ -39,7 +39,7 @@
 
 import { FOLLOWERS_CSV_URL, PLATFORM_ORDER, MONTH_ABBR } from './config.js';
 import { parseCSV } from './csv.js';
-import { parseSlashDate, dateKeyOf, fmtShortDate } from './dates.js';
+import { parseAnyDate, dateKeyOf, fmtShortDate } from './dates.js';
 import { normKey } from './utils.js';
 import { brandKeyOf, platformKeyOf, brandMeta } from './data.js';
 
@@ -132,7 +132,7 @@ function normalise(rows) {
     }
 
     const name = (row[cols.account] ?? '').trim();
-    const parts = parseSlashDate(row[cols.date]);
+    const parts = parseAnyDate(row[cols.date]);
     if (!name || !parts) continue;
     if (!order.includes(name)) order.push(name);
 

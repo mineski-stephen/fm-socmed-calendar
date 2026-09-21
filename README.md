@@ -155,7 +155,7 @@ it live the same way it reads the tracker. Its own published CSV is `FOLLOWERS_C
 
 | Column | Contents |
 |---|---|
-| `Date` | the day the count was collected, as `9/21/2026` |
+| `Date` | the day the count was collected, in either `Sep 21, 2026 (Mon)` or `9/21/2026` |
 | `Account` | the account the row is about |
 | `Facebook` … `LinkedIn` | the follower count on each platform, blank where there is no account |
 | *(spacer)* | an empty column separating the two blocks |

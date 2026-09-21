@@ -141,6 +141,21 @@ export function parseSlashDate(s) {
   if (mo < 0 || mo > 11 || d < 1 || d > 31) return null;
   return { y, mo, d };
 }
+
+/**
+ * A date cell in either shape the workbook writes: "Sep 21, 2026 (Mon)" or
+ * "9/21/2026".
+ *
+ * The two tabs were set up at different times and have already been
+ * reformatted from one to the other once, which broke every reading on the
+ * follower tab until this existed. A date column is a thing people reformat
+ * - it is a date, and the spreadsheet offers a menu of them - so reading
+ * both costs one extra call and removes the whole class of breakage.
+ *
+ * Named form first: it is the unambiguous one, and the only one where the
+ * month cannot be mistaken for the day.
+ */
+export const parseAnyDate = (s) => parseSheetDate(s) || parseSlashDate(s);
 export const monthLabel = (y, mo) => `${MONTH_NAMES[mo]} ${y}`;
 export const dowName = (date) => DAY_NAMES[date.getDay()];
 
