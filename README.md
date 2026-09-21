@@ -147,6 +147,122 @@ In the code this lives in `js/selectors.js` as `countPosts` (filter-aware) and `
 (ignores the platform filter, for the "of M" denominator and the notifications). If you add a
 count anywhere, use one of those rather than `.length`.
 
+### Follower counts
+
+A **second tab** of the same workbook holds a weekly follower count, and the Stats tab reads
+it live the same way it reads the tracker. Its own published CSV is `FOLLOWERS_CSV_URL` in
+`js/config.js`.
+
+| Column | Contents |
+|---|---|
+| `Date` | the day the count was collected, as `9/21/2026` |
+| `Account` | the account the row is about |
+| `Facebook` … `LinkedIn` | the follower count on each platform, blank where there is no account |
+| *(spacer)* | an empty column separating the two blocks |
+| `Account` + six more | the profile URL per platform — a static directory, the same every week |
+
+Columns are matched **by header name**, not by position, so a platform can be added or the six
+reordered without touching the code.
+
+**Blank rows are not zeros.** The whole schedule is pre-created — every week from the first
+reading to next March already exists with empty cells, waiting to be filled in. A row only
+counts as a reading when it actually carries a number, and an empty platform cell is *absent*
+rather than `0`: "not measured" and "nobody is following" are different facts, and treating
+them as the same would draw a collapse that never happened.
+
+**Accounts are not brands.** The tracker plans work per brand; this tab counts followers per
+account, and `FUNalo MAX (Backup)` is a second Facebook page belonging to the FUNalo MAX
+brand. Where a brand owns several accounts, its figure **on each platform is the higher of
+them** — the parenthetical is a backup, so the live page is whichever one is actually carrying
+the audience, and summing them would double-count the same brand's reach on the same channel.
+So FUNalo MAX's Facebook figure comes from the backup page (7,800 against the main page's
+5,400) while its Instagram, X, TikTok and YouTube figures come from the main one. A trailing
+parenthetical is stripped before the brand lookup rather than the name being special-cased, so
+the next backup or regional account resolves on its own.
+
+**The chart** plots one line per **account and platform** — "Solaire Online on Instagram" —
+which is the grain the numbers are collected at. **Colour is the platform** and **shape is the
+account**: every Instagram line is pink, and every line belonging to one page carries the same
+marker whichever channel it is, so you can follow either question through the chart. Shape
+also survives a greyscale print and red-green colourblindness, which a second shade of pink
+would not.
+
+Summing an account across its platforms, which is what this card used to do, hides the thing
+people come to it for: a page can be adding followers on TikTok while losing them on Facebook,
+and one total line says neither.
+
+**Both keys above the chart are also its filters** — one control per visual channel, so
+narrowing the chart and reading its legend are the same gesture. The platform chips carry the
+exact colour of that platform's lines; the account rows carry its marker shape. Click to
+isolate, click several to compare, `Show all` to go back. A line is drawn only if **both** its
+platform and its account are showing.
+
+This matters more than it sounds: Facebook dwarfs every other channel here, so with everything
+shown a page with forty YouTube subscribers sits on the axis floor. Hiding Facebook rescales
+the chart and makes it readable.
+
+The two keys **cross-filter each other's figures**. Pick one account and the platform chips
+drop to that account's own numbers; pick one platform and the account rows drop to their
+figures on it. Each is narrowed by the *other* filter but not by itself, so a switched-off
+chip or row still says what turning it back on would get you.
+
+Every account in the sheet stays listed, including any with nothing on the platforms currently
+showing — those read `–` and are not clickable. A key that dropped rows as you filtered would
+be a filter you could switch off but not back on.
+
+These chips are the only control for this card — the page's own Platform filter narrows
+*posts*, and having it silently narrow this chart too would make the keys disagree with the
+plot.
+
+**Every dot carries its value, captioned with whose it is** — `7,800` over
+`FUNalo MAX (Backup) · Facebook`. Colour and shape already encode both of those; spelling
+them out is what lets a label be read on its own instead of matched back to two keys.
+
+Lane width is computed from the captions themselves rather than fixed, since they are as long
+as the account and platform names happen to be — about 5.2px per character at the caption's
+size, checked against what the browser renders. A fixed width would either waste the plot or
+let one lane's text run into the next.
+
+On a linear axis most dots land near the floor — Facebook has 7,800 followers where X has 14
+— so a dozen labels want the same twenty pixels. Rather than stack them in one column and
+spread the stack, which ends with every label a long way from its dot, they are **dealt into
+lanes side by side** and only nudged vertically within a lane. Dealt round-robin down the
+sorted column, so each lane holds every nth label and its members start out n apart in height:
+most then sit at exactly their own dot's height, and half of them need no correction at all.
+
+The dot never moves. Where a label still had to, a faint **leader line** in the series colour
+elbows out at the dot's height and turns to meet it, and the label's halo punches a gap in any
+leader passing behind it. A column only gets labels if there is at least one lane's width of
+room before the next reading; the last reading turns inward, where the whole plot is free to
+its left.
+
+Between the chips and the chart, each account's current standing and what it did since its
+previous reading, **totalled over the visible platforms** so the figures match what is
+plotted. Both keys sit above the plot — one per visual channel, colour and shape — so the
+chart is read with its whole legend already in hand. Those changes are compared week by week
+rather than by pairing up the last two points of each line: a channel added halfway through
+has fewer readings than its neighbours, and pairing by position would difference two different
+weeks.
+
+The figure beside a brand in the grid below is always its **whole** standing, across every
+platform, whatever this card is filtered to — it belongs to a different card and its tooltip
+says so.
+
+**Growth needs two readings.** With only one week filled in there is no change to report, so
+the chart is a row of labelled dots, each account is marked `first reading`, and the brand
+grid shows the current standing labelled `followers` rather than an unlabelled number that
+would read as a week's gain. Fill in a second week and the lines, the arrows and the
+percentages all appear.
+
+A skipped week is not a drop: the comparison is between the last two weeks that **have** a
+reading, so a missed collection shifts the baseline instead of reporting everybody falling to
+zero.
+
+**The follower tab never gates the page.** It is a separate request, fetched alongside the
+tracker rather than after it, and a failure yields no readings rather than an error — a page
+that refused to show a month of planned posts because a second tab was unreachable would be
+trading the important thing for the incidental one.
+
 ---
 
 ## Brands, platforms, formats and statuses
@@ -636,10 +752,18 @@ somebody has to go and fill in.
   guesswork and the split is the whole point of the chart. The colour of that in-bar number
   comes from `--on-posted`, which flips with the theme: `--st-posted` is a dark green on the
   light theme and a light one on dark, so a single fixed colour is unreadable on one of them.
+- **Follower growth** — the weekly follower count per account, from the workbook's second tab.
+  See [Follower counts](#follower-counts).
 - **Brand x platform** — a heat grid reading **posted against planned**: a cell showing `7/11`
   is seven of eleven shipped. A bare total says how much work there is but nothing about how
   much of it is done, which is the question this grid is usually being asked. An empty cell is
   a channel that brand is not covering.
+
+  The last column reads **the total, then posted / for posting** — `49` above `17/32` means
+  forty-nine posts planned, seventeen of them shipped and thirty-two still to go. Beside each
+  brand's name is its **follower change** since the previous weekly reading, with an arrow for
+  the direction; hovering gives the current standing, the percentage and the date it is
+  measured from.
 - **Content readiness** — the share of posts that have a caption, an asset link and a live
   post link. This is the panel that tells the team what is still outstanding. A crosspost with
   no caption counts as two posts with no caption, because it is two things that go out
@@ -723,14 +847,36 @@ yet still looks like one.
 - Every post carries the **same header strip**, mock or simple card alike: platform logo and
   name, a `crosspost` marker where relevant, the status, the format and the time. However
   convincing a mock looks, which platform it belongs to is never a guess.
-- Clicking the media or the page name opens the **Post Link**; if the row has none, it opens
-  the **Files Chip URL** instead. If the row has neither, the element is inert and does not
-  pretend to be clickable.
+- Clicking the media or the page name opens **this platform's Post Link**; if the row has none
+  for it, it opens the **Files Chip URL** instead. If the row has neither, the element is inert
+  and does not pretend to be clickable.
 - **Post Link can hold more than one URL.** A crosspost carries one per platform in the same
-  cell, so the Facebook mock opens the Facebook post and the Instagram mock the Instagram one,
-  matched by hostname. Links are *extracted* from the cell rather than assumed to be its whole
-  contents — somebody occasionally leaves feedback in there, and a paragraph of notes must
-  never end up as an `href`.
+  cell, one per line:
+
+  ```
+  https://www.facebook.com/122168490602961112/posts/122170272254961112
+
+  https://www.instagram.com/p/DdVwPfrlluA/
+  ```
+
+  Each is matched to its platform **by hostname**, so the Facebook card opens the Facebook post
+  and the Instagram card the Instagram one. Links are *extracted* from the cell rather than
+  assumed to be its whole contents — somebody occasionally leaves feedback in there, and a
+  paragraph of notes must never end up as an `href`.
+- **A card never borrows another platform's link.** A crosspost usually goes live on one
+  platform first, so for a while the cell holds a Facebook URL and nothing else. That URL is
+  not the Instagram post, and sending the Instagram card to it would be a click landing
+  somewhere the card never claimed to go. So a link another platform has already claimed is
+  left alone: the card falls back to the asset in Drive, which every platform on the row
+  genuinely shares, and hovering it says why — *"Not live on Instagram yet — the tracker has a
+  link for Facebook only"*. Add the Instagram URL to the cell and the card starts opening it.
+
+  The cell's link is still used for a platform of its own when nothing in it belongs to anybody
+  else: a single-platform row, or a shortened URL whose host tells us nothing.
+- **A simple card lists the siblings too**, each named: an Instagram card on a crosspost that
+  is only live on Facebook offers `View on Facebook`. Naming it is the point — a button reading
+  "View live post" that opens a different platform is a trap; one reading "View on Facebook" is
+  a useful thing to know.
 - **Clicking a caption copies it** - the whole thing, line breaks and emoji intact - and a
   "Copied to clipboard" confirmation pops out of the middle of the screen. Links inside the
   caption still behave as links.

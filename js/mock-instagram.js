@@ -91,7 +91,9 @@ export function mockInstagramHTML(post, platformKey = 'instagram') {
       <span class="mock-ig__burger">${glyph(GLYPHS.igBurger)}</span>
     </div>
 
-    <div class="mock-ig__media" ${isAlbum ? '' : clickable(post, 'mock-ig__mediahit')}>${media}</div>
+    <div ${isAlbum
+      ? 'class="mock-ig__media"'
+      : clickable(post, 'mock-ig__media mock-ig__mediahit', platformKey)}>${media}</div>
 
     <div class="mock-ig__bar">
       <span class="mock-ig__act mock-ig__act--like">${glyph(GLYPHS.igLike)}${formatCount(e.likes)}</span>

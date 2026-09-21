@@ -130,6 +130,30 @@
 /* Thirty dates share one axis, so these run at the smallest size on the tab. */
 .chart .t-day { font-size: var(--st-micro); fill: var(--text-dim);
   font-variant-numeric: tabular-nums; }
+/* A value beside its dot on the follower chart. Coloured by series, so it is
+   findable among a dozen others; haloed in the card's own background via
+   paint-order, so it stays legible where it crosses a line or a gridline. */
+.chart .t-pt {
+  font-size: var(--st-micro); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  paint-order: stroke fill;
+  stroke: var(--surface);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+/* Whose number it is, under the number. Smaller and neutral: the value is
+   what is being read, and the colour already says which platform. */
+.chart .t-cap {
+  font-size: 9px; font-weight: 600;
+  fill: var(--text-dim);
+  paint-order: stroke fill;
+  stroke: var(--surface);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+/* Ties a nudged label back to the dot it belongs to. Faint on purpose: it is
+   a pointer, and a dozen of them at full strength would out-shout the data. */
+.chart .t-lead { fill: none; stroke-width: 1; opacity: .5; }
 /* the total above each column */
 .chart .t-count { font-size: var(--st-micro); font-weight: 700; fill: var(--text);
   font-variant-numeric: tabular-nums; }
@@ -200,7 +224,161 @@
 .matrix__n i { font-style: normal; font-weight: 600; color: var(--text-dim); }
 /* the one place --text-faint belongs: a channel a brand does not cover */
 .matrix__n--zero { color: var(--text-faint); font-weight: 500; background: none; }
-.matrix__tot { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+/* Total, then how it splits: shipped against still to go. The split is the
+   smaller of the two figures on purpose - the total is what the column is
+   for, and the pair below it is the detail. */
+.matrix__tot {
+  color: var(--text); font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.matrix__tot b { font-weight: 700; }
+.matrix__tot i {
+  display: block;
+  font-style: normal; font-weight: 600;
+  font-size: var(--st-meta); color: var(--text-dim);
+}
+/* the second line of the column head */
+.matrix__sub {
+  display: block;
+  font-size: var(--st-micro); font-weight: 600; letter-spacing: 0;
+  text-transform: none; color: var(--text-dim);
+}
+
+/* ------------------------------- followers -------------------------------- */
+
+/*
+ * Follower change. Green and red carry the direction, but so do the arrow and
+ * the sign - colour alone would say nothing to a red-green colourblind reader,
+ * and this is a number whose direction IS the message.
+ */
+.fgrow {
+  display: inline-flex; align-items: baseline; gap: 3px;
+  margin-left: 7px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-size: var(--st-micro); font-weight: 700; font-style: normal;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.fgrow--up {
+  color: var(--st-posted);
+  background: color-mix(in srgb, var(--st-posted) 15%, transparent);
+}
+.fgrow--down {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+}
+.fgrow--flat,
+.fgrow--first {
+  color: var(--text-dim);
+  background: var(--surface-2);
+  font-weight: 600;
+}
+/* The standing before there is anything to compare it with. Spelled out
+   because an unlabelled 9,029 in the slot that later holds an arrow and a
+   change would read as a week's growth of nine thousand. */
+.fgrow--first em {
+  font-style: normal; font-weight: 500;
+  opacity: .8;
+}
+
+/*
+ * The platform legend, which is also the filter.
+ *
+ * One control rather than a legend beside a filter: the swatch here is the
+ * exact colour of that platform's lines, so reading the key and narrowing the
+ * chart are the same gesture. Pressed state is carried by the border and the
+ * background as well as by opacity, since "dimmed" alone is easy to miss.
+ */
+.pfilters {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin-bottom: 12px;
+}
+.pfilter {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font: inherit; font-size: var(--st-meta); font-weight: 600;
+  cursor: pointer;
+  opacity: .55;
+}
+.pfilter:hover { border-color: var(--accent); color: var(--text); opacity: .8; }
+.pfilter.is-on {
+  opacity: 1;
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
+}
+.pfilter__sw {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--text-dim);
+  flex: 0 0 auto;
+}
+.pfilter__logo { width: 15px; height: 15px; border-radius: 50%; }
+.pfilter__n {
+  color: var(--text-dim); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.pfilter.is-on .pfilter__n { color: var(--text); }
+.pfilters .linkbtn { font-size: var(--st-meta); margin-left: 2px; }
+
+/* The marker shape a line carries, repeated in the key so the shapes mean
+   something. Sized to the text it sits beside rather than to the chart. */
+.mk { width: 14px; height: 14px; flex: 0 0 auto; overflow: visible; }
+
+/*
+ * Current standing per account, and the second of the card's two filters.
+ *
+ * Sits between the platform chips and the plot, so both keys are in hand
+ * before the chart is read - and since each key is also the control for its
+ * own visual channel, narrowing the chart and reading its legend are the
+ * same gesture. A row carries its own marker shape for exactly that reason.
+ */
+.flist {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 4px 14px;
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.flist__row {
+  display: flex; align-items: center; gap: 8px;
+  font: inherit; font-size: var(--st-body);
+  text-align: left;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: .55;
+}
+.flist__row:hover { border-color: var(--accent); opacity: .85; }
+.flist__row.is-on { opacity: 1; background: var(--surface-2); }
+/* An account with nothing on the platforms currently showing. Listed, so the
+   roster stays stable as you filter, but there is nothing to switch. */
+.flist__row.is-empty {
+  cursor: default; opacity: .4;
+}
+.flist__row.is-empty:hover { border-color: transparent; opacity: .4; }
+.flist__row.is-empty .flist__n { color: var(--text-faint); font-weight: 500; }
+.flist__name {
+  color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.flist__n {
+  margin-left: auto; font-weight: 700; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.flist .fgrow { margin-left: 0; }
+.flist__note {
+  margin-top: 12px;
+  font-size: var(--st-meta); color: var(--text-dim); line-height: 1.5;
+}
 
 /* ------------------------------ readiness --------------------------------- */
 

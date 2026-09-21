@@ -34,7 +34,7 @@ export function mockFacebookHTML(post, platformKey = 'facebook') {
 
   return `<article class="mock-fb">
     <div class="mock-fb__head">
-      <span ${clickable(post, 'mock-fb__avlink')}>${avatarHTML(post)}</span>
+      <span ${clickable(post, 'mock-fb__avlink', platformKey)}>${avatarHTML(post)}</span>
       <div class="mock-fb__who">
         <div class="mock-fb__name" ${linkAttrs(post, platformKey)}>${escapeHtml(b.label)}</div>
         <div class="mock-fb__meta">

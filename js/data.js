@@ -100,8 +100,8 @@ const lookupKey = (raw, aliases, meta) => {
   return s || null;
 };
 
-const brandKeyOf    = (raw) => lookupKey(raw, BRAND_ALIASES, BRAND_META);
-const platformKeyOf = (raw) => lookupKey(raw, PLATFORM_ALIASES, PLATFORM_META);
+export const brandKeyOf    = (raw) => lookupKey(raw, BRAND_ALIASES, BRAND_META);
+export const platformKeyOf = (raw) => lookupKey(raw, PLATFORM_ALIASES, PLATFORM_META);
 
 /**
  * One posting can go out on several platforms at once - the tracker writes a

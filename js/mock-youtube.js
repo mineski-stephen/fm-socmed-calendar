@@ -62,7 +62,7 @@ export function mockYouTubeHTML(post, platformKey = 'youtube') {
 
   return `<article class="mock-yt phone">
     <div class="phone__screen">
-      <div class="phone__media" ${clickable(post, 'phone__mediahit', platformKey)}>
+      <div ${clickable(post, 'phone__media phone__mediahit', platformKey)}>
         ${mediaHTML(post, { aspect: 'ph--fill' })}
       </div>
 

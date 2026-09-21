@@ -152,18 +152,44 @@ export function captionHTML(text, { clamp = false, id = '', sm = false } = {}) {
 /**
  * Where a click on this post should go, for the platform being drawn.
  *
- * A crosspost carries one Post Link per platform in the same cell, so the
- * Facebook mock must open the Facebook post and the Instagram mock the
- * Instagram one. Falling back in order: this platform's own link, then any
- * link in the cell, then the asset in Drive, then nowhere.
+ * A crosspost carries one Post Link per platform in the same cell, written one
+ * per line, and each is matched to its platform by hostname - so the Facebook
+ * card opens the Facebook post and the Instagram card the Instagram one.
+ *
+ * The important part is what happens when a platform's link ISN'T there. A
+ * crosspost usually goes live on one platform first, so for a while the cell
+ * holds a Facebook URL and nothing else. That Facebook URL is not the
+ * Instagram post, and sending the Instagram card to it means a click that
+ * lands somewhere the card never claimed to go.
+ *
+ * So a link that another platform has already claimed is never borrowed. The
+ * cell's link is only used for a platform of its own when nothing in the cell
+ * belongs to anybody else - a single-platform row, or a shortened URL whose
+ * host tells us nothing. Otherwise this platform is simply not live yet, and
+ * the card falls back to the asset in Drive, which every platform on the row
+ * genuinely shares.
+ *
+ * `pending` says which case that is, so the card can explain itself rather
+ * than just refusing to open.
  */
 export function targetFor(post, platformKey = '') {
   const own = platformKey && post.postLinks?.[platformKey];
-  if (own) return { url: own, kind: 'post', exact: true };
-  if (post.postLink) return { url: post.postLink, kind: 'post', exact: false };
-  if (post.filesUrl) return { url: post.filesUrl, kind: 'files', exact: false };
-  return { url: null, kind: null, exact: false };
+  if (own) return { url: own, kind: 'post', exact: true, pending: false };
+
+  const pending = !!platformKey
+    && Object.keys(post.postLinks || {}).some((k) => k !== platformKey);
+  if (post.postLink && !pending) {
+    return { url: post.postLink, kind: 'post', exact: false, pending: false };
+  }
+  if (post.filesUrl) return { url: post.filesUrl, kind: 'files', exact: false, pending };
+  return { url: null, kind: null, exact: false, pending };
 }
+
+/** Why this card cannot open the live post, in the words of the row. */
+const noLinkNote = (post, platformKey, pending) => (pending && platformKey
+  ? `Not live on ${platformMeta(platformKey).label} yet - the tracker has a link for `
+    + `${Object.keys(post.postLinks).map((k) => platformMeta(k).label).join(' and ')} only`
+  : 'No post link or asset link in the tracker');
 
 /**
  * Attributes for a page name or handle that links to the live post. Same
@@ -173,20 +199,21 @@ export function linkAttrs(post, platformKey = '') {
   const t = targetFor(post, platformKey);
   return t.url
     ? `data-act="open" data-url="${escapeHtml(t.url)}" role="link" tabindex="0"`
-    : 'title="No post link or asset link in the tracker"';
+    : `title="${escapeHtml(noLinkNote(post, platformKey, t.pending))}"`;
 }
 
 /** Class + attributes for something clickable that may have nowhere to go. */
 function clickable(post, baseCls, platformKey = '') {
   const t = targetFor(post, platformKey);
+  const note = noLinkNote(post, platformKey, t.pending);
   if (t.url) {
     const label = t.kind === 'post'
       ? (t.exact ? 'Open the live post' : 'Open the live post (this row has one link)')
-      : 'Open the asset in Drive';
+      : (t.pending ? `${note} - opens the asset in Drive` : 'Open the asset in Drive');
     return `class="${baseCls}" data-act="open" data-url="${escapeHtml(t.url)}" ` +
-           `role="link" tabindex="0" title="${label}"`;
+           `role="link" tabindex="0" title="${escapeHtml(label)}"`;
   }
-  return `class="${baseCls} is-inert" title="No post link or asset link in the tracker"`;
+  return `class="${baseCls} is-inert" title="${escapeHtml(note)}"`;
 }
 
 const phLabel = (post) =>
@@ -389,21 +416,32 @@ const incompleteMark = (post) => post.incomplete
   ? `<span class="warnmark" title="This row is missing its Platform or Type of Post ` +
     `in the tracker">!</span>` : '';
 
+const linkBtn = (url, label) =>
+  `<a class="linkbtn" href="${escapeHtml(url)}" target="_blank" ` +
+  `rel="noopener noreferrer">${escapeHtml(label)} ↗</a>`;
+
+/*
+ * A crosspost's cell holds one link per platform, so this card leads with its
+ * own and then offers its siblings' by name.
+ *
+ * Naming them is the whole point. "View live post" on an Instagram card that
+ * opens Facebook is a trap; "View on Facebook" on the same card is a useful
+ * thing to know - the row went out over there first, and here is where.
+ */
 const linksHTML = (post, platformKey = '') => {
   const out = [];
-  // A crosspost's cell holds one link per platform; show this platform's.
   const t = targetFor(post, platformKey);
   if (t.kind === 'post') {
     const label = t.exact && platformKey
       ? `View on ${platformMeta(platformKey).label}`
       : 'View live post';
-    out.push(`<a class="linkbtn" href="${escapeHtml(t.url)}" target="_blank" ` +
-             `rel="noopener noreferrer">${escapeHtml(label)} ↗</a>`);
+    out.push(linkBtn(t.url, label));
   }
-  if (post.filesUrl) {
-    out.push(`<a class="linkbtn" href="${escapeHtml(post.filesUrl)}" target="_blank" ` +
-             `rel="noopener noreferrer">Open asset ↗</a>`);
+  for (const [k, url] of Object.entries(post.postLinks || {})) {
+    if (k === platformKey || url === t.url) continue;
+    out.push(linkBtn(url, `View on ${platformMeta(k).label}`));
   }
+  if (post.filesUrl) out.push(linkBtn(post.filesUrl, 'Open asset'));
   return out.length ? `<div class="pcard__links">${out.join('')}</div>` : '';
 };
 

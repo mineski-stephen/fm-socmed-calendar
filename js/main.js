@@ -10,6 +10,7 @@ import { AUTO_REFRESH_MS, LOADER_MIN_MS, ALERT_SNOOZE_MS, SHEET_URL } from './co
 import { $ } from './utils.js';
 import { todayKey, partsFromKey } from './dates.js';
 import { loadPosts, buildFacets, monthsWithData } from './data.js';
+import { loadFollowers } from './followers.js';
 import {
   state, loadPrefs, savePrefs, syncHash, applyHash, invalidate,
   toggleFilter, clearFilters, setMonth, ensureSelectedDay, FILTER_FIELDS,
@@ -162,7 +163,20 @@ function onRailDay(key) {
   }, 110);
 }
 
+/** Add or drop one value from a follower filter, then redraw the tab. */
+function toggleFollower(set, value) {
+  if (!value) return;
+  if (set.has(value)) set.delete(value);
+  else set.add(value);
+  scheduleRender(SCOPE.VIEW);
+}
+
 /* --------------------------------- data ----------------------------------- */
+
+/** Enough of the follower data to tell one reading of the tab from another. */
+const followerSig = (f) => (f?.weeks || [])
+  .map((w) => `${w.key}:${[...w.by].map(([n, r]) => `${n}=${r.total}`).sort().join(',')}`)
+  .join('|');
 
 function adoptPosts(posts, fingerprint = '') {
   state.posts = posts;
@@ -200,8 +214,14 @@ async function initialLoad() {
   const floor = new Promise((r) => setTimeout(r, LOADER_MIN_MS));
 
   try {
-    const { posts, fingerprint } = await loadPosts();
+    // Side by side, not one after the other: the follower tab is a separate
+    // request and there is no reason to make the calendar wait for it.
+    // loadFollowers never rejects, so only the tracker can fail here.
+    const [{ posts, fingerprint }, followers] = await Promise.all([
+      loadPosts(), loadFollowers(),
+    ]);
     await floor;
+    state.followers = followers;
     adoptPosts(posts, fingerprint);
   } catch (err) {
     await floor;
@@ -242,7 +262,20 @@ async function refresh({ quiet = false } = {}) {
   const keepDay = state.selectedDayKey;
 
   try {
-    const { posts, fingerprint } = await loadPosts({ bust: true });
+    const [{ posts, fingerprint }, followers] = await Promise.all([
+      loadPosts({ bust: true }), loadFollowers({ bust: true }),
+    ]);
+    /*
+     * Follower counts live on their own tab, so they can move in a week when
+     * the tracker itself has not changed a cell. Adopted before the
+     * unchanged-fingerprint shortcut below, and if they DID move the view is
+     * redrawn even though the calendar is identical - otherwise the Stats tab
+     * would sit on last week's numbers until something else happened.
+     */
+    const before = followerSig(state.followers);
+    if (followers.weeks.length || !state.followers) state.followers = followers;
+    const followersMoved = followerSig(state.followers) !== before;
+
     const unchanged = fingerprint === state.fingerprint;
 
     state.refreshing = false;
@@ -251,7 +284,13 @@ async function refresh({ quiet = false } = {}) {
       // Nothing moved in the sheet. Just bump the clock.
       state.syncedAt = Date.now();
       syncSyncLabel();
-      if (!quiet) toast('Already up to date', `${countAll(posts)} posts, nothing changed.`, 'ok', 2600);
+      if (followersMoved) scheduleRender(SCOPE.VIEW);
+      if (!quiet) {
+        toast('Already up to date',
+          followersMoved
+            ? `${countAll(posts)} posts, unchanged - follower counts updated.`
+            : `${countAll(posts)} posts, nothing changed.`, 'ok', 2600);
+      }
       return;
     }
 
@@ -513,6 +552,21 @@ const ACTIONS = {
 
     if (el.dataset.scope === lightbox.SCOPE) lightbox.rerender();
     else scheduleRender(SCOPE.VIEW);
+  },
+
+  /*
+   * The follower chart's two keys, each of which is also a filter: the
+   * platform chips above it and the account rows under them. One control per
+   * visual channel, so narrowing the chart and reading its legend are the
+   * same gesture.
+   */
+  'follower-platform'(el) { toggleFollower(state.followerPlatforms, el.dataset.platform); },
+  'follower-account'(el) { toggleFollower(state.followerAccounts, el.dataset.account); },
+
+  'follower-clear'() {
+    state.followerPlatforms.clear();
+    state.followerAccounts.clear();
+    scheduleRender(SCOPE.VIEW);
   },
 
   'carousel-nav'(el) {

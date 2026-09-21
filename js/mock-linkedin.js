@@ -54,7 +54,7 @@ export function mockLinkedInHTML(post, platformKey = 'linkedin') {
 
   return `<article class="mock-li">
     <div class="mock-li__head">
-      <span ${clickable(post, 'mock-li__avlink')}>${avatarHTML(post)}</span>
+      <span ${clickable(post, 'mock-li__avlink', platformKey)}>${avatarHTML(post)}</span>
       <div class="mock-li__who">
         <div class="mock-li__name" ${linkAttrs(post, platformKey)}>${escapeHtml(b.label)}${VERIFIED}</div>
         <div class="mock-li__meta">

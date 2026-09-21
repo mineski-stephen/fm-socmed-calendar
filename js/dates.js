@@ -124,6 +124,23 @@ export const fmtTime = (h, min) => {
 export const fmtLongDate = ({ y, mo, d }) => `${MONTH_NAMES[mo]} ${d}, ${y}`;
 export const fmtShortDate = ({ y, mo, d }) => `${MONTH_ABBR[mo]} ${d}, ${y}`;
 export const fmtSlashDate = ({ y, mo, d }) => `${mo + 1}/${d}/${String(y).slice(2)}`;
+
+/**
+ * "9/21/2026" -> { y, mo, d }. The follower sheet writes its dates this way
+ * rather than in the tracker's "Sep 11, 2026 (Fri)" form.
+ *
+ * Built by hand for the same reason parseSheetDate is: new Date(string) on a
+ * slash date is implementation-defined about the order of the first two
+ * numbers, and a US-order sheet read as day-first would silently move every
+ * reading to a different week.
+ */
+export function parseSlashDate(s) {
+  const m = /^\s*(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{4})\s*$/.exec(String(s ?? ''));
+  if (!m) return null;
+  const mo = +m[1] - 1, d = +m[2], y = +m[3];
+  if (mo < 0 || mo > 11 || d < 1 || d > 31) return null;
+  return { y, mo, d };
+}
 export const monthLabel = (y, mo) => `${MONTH_NAMES[mo]} ${y}`;
 export const dowName = (date) => DAY_NAMES[date.getDay()];
 

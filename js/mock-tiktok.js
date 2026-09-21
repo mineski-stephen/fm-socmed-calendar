@@ -93,7 +93,7 @@ function photoPostHTML(post, platformKey, b, e) {
         ${SEARCH}
       </div>
 
-      <div class="mock-tt__pstage" ${clickable(post, 'mock-tt__phit', platformKey)}>
+      <div ${clickable(post, 'mock-tt__pstage mock-tt__phit', platformKey)}>
         ${mediaHTML(post, { aspect: 'ph--4x5' })}
       </div>
       ${dots}
@@ -125,7 +125,7 @@ export function mockTikTokHTML(post, platformKey = 'tiktok') {
   // The whole screen is the creative, so the whole screen is the click target.
   return `<article class="mock-tt phone">
     <div class="phone__screen">
-      <div class="phone__media" ${clickable(post, 'phone__mediahit', platformKey)}>
+      <div ${clickable(post, 'phone__media phone__mediahit', platformKey)}>
         ${mediaHTML(post, { aspect: 'ph--fill' })}
       </div>
 

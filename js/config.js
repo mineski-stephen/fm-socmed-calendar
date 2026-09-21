@@ -11,6 +11,18 @@ export const CSV_URL =
   'https://docs.google.com/spreadsheets/d/e/2PACX-1vR26NJiJz14xBD0dY69D_RnA9F-JNtxqRDnQfUEKfnJVZtpPZHGfNH5Xj3mKIlz-s7lATp3gEk_WYDo/pub?gid=1769957223&single=true&output=csv';
 
 /**
+ * Second tab of the same workbook: a weekly follower count per account.
+ *
+ * One row per account per week, with the whole schedule pre-created - every
+ * week from here to next March already exists with empty cells. So a row is
+ * only a reading when it actually carries numbers; a blank row is a week
+ * nobody has collected yet, not a week where everybody lost all their
+ * followers. followers.js drops them.
+ */
+export const FOLLOWERS_CSV_URL =
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vR26NJiJz14xBD0dY69D_RnA9F-JNtxqRDnQfUEKfnJVZtpPZHGfNH5Xj3mKIlz-s7lATp3gEk_WYDo/pub?gid=398055717&single=true&output=csv';
+
+/**
  * The editable sheet behind that CSV. The page is read-only by design, so the
  * app bar carries a way back to the place where the data is actually changed.
  */

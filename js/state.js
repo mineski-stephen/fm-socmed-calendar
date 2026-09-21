@@ -11,6 +11,20 @@ export const state = {
 
   posts: [],
   facets: null,
+  // Weekly follower counts from the workbook's second tab. Null until the
+  // first read; an unreachable tab leaves it with no weeks, never an error -
+  // it supports the tracker rather than gating it.
+  followers: null,
+  /*
+   * Which platforms the follower chart is showing. Empty means all, like
+   * every other filter here. Its own set rather than the filter bar's: that
+   * one narrows POSTS, and the chips on the card are the only control for
+   * the chart, so the two must not silently disagree.
+   */
+  followerPlatforms: new Set(),
+  /* The same, for accounts. The two narrow the chart independently: a line
+     survives only if its platform and its account are both showing. */
+  followerAccounts: new Set(),
   fingerprint: '',        // hash of the raw CSV, to spot a no-op refresh
   syncedAt: 0,
   refreshing: false,

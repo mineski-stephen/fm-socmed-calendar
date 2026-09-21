@@ -164,6 +164,224 @@ export function dayColumns(series, {
   return svgWrap(width, height, `${grid}${bars}`, 'Posts per day, posted against outstanding');
 }
 
+/**
+ * Multi-series line chart, for the weekly follower count.
+ *
+ * A line rather than columns because the question here is a trajectory, not a
+ * set of independent tallies - and unlike posts per day there is no such thing
+ * as a week with zero followers, so a gap in the line means "not collected"
+ * rather than "none". Series are drawn with their points marked, so a reading
+ * is always visible as a reading even where the line between two of them is
+ * long.
+ *
+ * With a single reading there is no line to draw at all. Rather than render an
+ * empty plot, each series becomes one labelled dot on a single tick: it is an
+ * honest picture of "one week in, here is where everybody stands", and it
+ * turns into a real chart the moment a second week is collected.
+ *
+ * @param {{label:string,hue:string,points:{i:number,y:number,tip?:string}[]}[]} series
+ * @param {string[]} xLabels  one per x index
+ */
+export function lines(series, {
+  width = 900, height = 240, xLabels = [], fmt = (v) => String(v), labels = false,
+} = {}) {
+  const pts = series.flatMap((s) => s.points);
+  if (!pts.length) return emptyChart(width, height);
+
+  const cols = Math.max(1, xLabels.length);
+  const max = Math.max(...pts.map((p) => p.y));
+  const top = niceCeil(max);
+
+  const padL = 46, padR = 12, padT = 14, padB = 30;
+  const plotW = width - padL - padR;
+  const plotH = height - padT - padB;
+  const base = padT + plotH;
+  // A single column sits in the middle of the plot; several span its width, so
+  // the first and last readings touch the axis ends.
+  const xAt = (i) => (cols === 1 ? padL + plotW / 2 : padL + (i / (cols - 1)) * plotW);
+  const yAt = (v) => base - (v / top) * plotH;
+
+  const grid = [0, top / 2, top].map((t) => `
+    <line class="grid" x1="${padL}" y1="${yAt(t)}" x2="${width - padR}" y2="${yAt(t)}"/>
+    <text x="0" y="${yAt(t) + 4}" class="t-mut">${escapeHtml(fmt(Math.round(t)))}</text>`).join('');
+
+  const ticks = xLabels.map((l, i) => `
+    <text x="${xAt(i)}" y="${height - 10}" text-anchor="middle" class="t-day">${escapeHtml(l)}</text>`).join('');
+
+  /*
+   * Two visual channels, one meaning each. COLOUR is the series' own hue - on
+   * the follower chart, the platform. SHAPE and dash pattern are `variant`,
+   * the second dimension - there, which account.
+   *
+   * Splitting them this way is what lets four accounts on six platforms be
+   * read at all: every Instagram line is pink, and every line belonging to
+   * one account carries the same marker, so you can follow either question
+   * through the chart. Shape also survives greyscale and colourblindness,
+   * which a second shade of pink would not.
+   */
+  const plots = series.map((s) => {
+    if (!s.points.length) return '';
+    const v = s.variant || 0;
+    const path = s.points.map((p, k) =>
+      `${k ? 'L' : 'M'}${xAt(p.i).toFixed(1)} ${yAt(p.y).toFixed(1)}`).join(' ');
+    const dash = DASHES[v % DASHES.length];
+    const line = s.points.length > 1
+      ? `<path d="${path}" fill="none" stroke="${s.hue}" stroke-width="2.25"
+               ${dash ? `stroke-dasharray="${dash}"` : ''}
+               stroke-linecap="round" stroke-linejoin="round"/>` : '';
+    const dots = s.points.map((p) => `<g>
+        <title>${escapeHtml(p.tip || `${s.label}: ${fmt(p.y)}`)}</title>
+        ${marker(v, xAt(p.i), yAt(p.y), s.hue)}
+      </g>`).join('');
+    return line + dots;
+  }).join('');
+
+  return svgWrap(width, height,
+    `${grid}${ticks}${plots}${labels ? valueLabels() : ''}`,
+    'Follower count by week');
+
+  /*
+   * The value beside each dot, captioned with the account it belongs to.
+   *
+   * On a linear axis most dots land near the floor - Facebook has 7,800
+   * followers where X has 14 - so a dozen labels want the same twenty
+   * pixels. Stacking them vertically and spreading the stack is what a
+   * single lane can do, and it ends with every label a long way from its
+   * dot, connected by a fan of near-parallel leader lines.
+   *
+   * So labels are dealt into LANES side by side instead, and only nudged
+   * vertically within a lane. Dealt round-robin down the sorted column, so
+   * each lane holds every nth label and its members are already n apart in
+   * height: most of them then sit at exactly their own dot's height and
+   * their leader line is horizontal.
+   *
+   * The dot never moves. Where a label still had to, the leader elbows out
+   * at the dot's height and turns to meet it, and the label's halo punches
+   * a gap in any leader passing behind it.
+   */
+  function valueLabels() {
+    // A value over a caption occupies about 23px, measured against what the
+    // text actually renders to. Undersize it and each label collides with
+    // the one below it in its lane.
+    const ROW = 25;
+    const out = [];
+
+    for (let i = 0; i < cols; i++) {
+      const here = [];
+      for (const s of series) {
+        const p = s.points.find((q) => q.i === i);
+        if (p) here.push({ y: yAt(p.y), text: fmt(p.y), cap: s.caption || '', hue: s.hue });
+      }
+      if (!here.length) continue;
+
+      /*
+       * Lane width comes from the captions themselves rather than a constant:
+       * they name an account and a platform, so they are as long as the names
+       * happen to be, and a fixed width would either waste the plot or let
+       * one lane's text run into the next. ~5.2px per character at the
+       * caption's 9px size, checked against what the browser renders.
+       */
+      const LANE = Math.max(60,
+        Math.round(Math.max(0, ...here.map((l) => l.cap.length)) * 5.2) + 16);
+
+      /*
+       * Which way the labels go, and how much room they have. The last
+       * reading sits on the right edge and turns inward, where the whole
+       * plot is free; every other column writes into the gap before the
+       * next one, and a column with less than one label's width of gap is
+       * left to its tooltips rather than written over its neighbour.
+       */
+      const last = cols > 1 && i === cols - 1;
+      const dir = last ? -1 : 1;
+      const dotX = xAt(i);
+      const room = dir > 0
+        ? (i + 1 < cols ? xAt(i + 1) : width - padR) - dotX - 10
+        : dotX - padL - 10;
+      const maxLanes = Math.floor(room / LANE);
+      if (maxLanes < 1) continue;
+
+      here.sort((a2, b2) => a2.y - b2.y);
+      const n = Math.min(maxLanes, Math.max(1, Math.ceil(here.length / 5)));
+      const lanes = Array.from({ length: n }, () => []);
+      here.forEach((l, k) => lanes[k % n].push(l));
+
+      for (let L = 0; L < n; L++) {
+        const lane = lanes[L];
+
+        // Down from the ceiling, then back up from the floor. Two passes,
+        // because one pass that shifts a whole lane to fit carries its top
+        // label clean off the chart.
+        let prev = padT + 4 - ROW;
+        for (const l of lane) { l.at = Math.max(l.y, prev + ROW); prev = l.at; }
+        let next = base + 4 + ROW;
+        for (let k = lane.length - 1; k >= 0; k--) {
+          lane[k].at = Math.min(lane[k].at, next - ROW);
+          next = lane[k].at;
+        }
+
+        const x = dotX + dir * (10 + L * LANE);
+        const anchor = last ? 'end' : 'start';
+        for (const l of lane) {
+          out.push(leader(dotX, l.y, x, l.at, dir, l.hue));
+          out.push(`<text x="${x.toFixed(1)}" y="${(l.at + 1).toFixed(1)}"
+            text-anchor="${anchor}" class="t-pt"
+            style="fill:${l.hue}">${escapeHtml(l.text)}</text>`);
+          if (l.cap) {
+            out.push(`<text x="${x.toFixed(1)}" y="${(l.at + 11).toFixed(1)}"
+              text-anchor="${anchor}" class="t-cap">${escapeHtml(l.cap)}</text>`);
+          }
+        }
+      }
+    }
+    return out.join('');
+  }
+
+  /** Dot to label: out at the dot's height, then a turn to meet it. */
+  function leader(dotX, dotY, labelX, labelY, dir, hue) {
+    const from = dotX + dir * 6;
+    const to = labelX - dir * 3;
+    if (Math.abs(to - from) < 7 && Math.abs(labelY - dotY) < 1.5) return '';
+    const bend = to - dir * Math.min(8, Math.abs(to - from) / 2);
+    return `<path class="t-lead" stroke="${hue}" d="M${from.toFixed(1)} ${dotY.toFixed(1)}`
+         + `L${bend.toFixed(1)} ${dotY.toFixed(1)}L${to.toFixed(1)} ${labelY.toFixed(1)}"/>`;
+  }
+}
+
+/*
+ * The four marker shapes, in the order variants are handed out. Four because
+ * that is how many stay tellable apart at 9px; a fifth series of the same
+ * colour cycles back to the circle, and its tooltip is what distinguishes it.
+ */
+const DASHES = ['', '7 5', '2 4', '11 4 2 4'];
+
+function marker(v, x, y, hue) {
+  const cx = +x.toFixed(1), cy = +y.toFixed(1);
+  const common = `fill="${hue}" stroke="var(--surface)" stroke-width="1.6"`;
+  switch (v % 4) {
+    case 1:  // square
+      return `<rect x="${cx - 4.2}" y="${cy - 4.2}" width="8.4" height="8.4" rx="1" ${common}/>`;
+    case 2:  // triangle
+      return `<path d="M${cx} ${cy - 5.2}L${cx + 4.8} ${cy + 3.6}L${cx - 4.8} ${cy + 3.6}Z" ${common}/>`;
+    case 3:  // diamond
+      return `<path d="M${cx} ${cy - 5.6}L${cx + 5.2} ${cy}L${cx} ${cy + 5.6}L${cx - 5.2} ${cy}Z" ${common}/>`;
+    default:
+      return `<circle cx="${cx}" cy="${cy}" r="4.4" ${common}/>`;
+  }
+}
+
+/** The same shape as an inline HTML bullet, for the key under the chart. */
+export function markerSwatch(v, hue) {
+  return `<svg class="mk" viewBox="0 0 14 14" aria-hidden="true">
+    ${marker(v, 7, 7, hue)}</svg>`;
+}
+
+/** A round number at or above `n`, so the top gridline reads as a number. */
+function niceCeil(n) {
+  if (n <= 0) return 1;
+  const mag = 10 ** Math.floor(Math.log10(n));
+  return Math.ceil(n / mag) * mag;
+}
+
 function emptyChart(w = 300, h = 90) {
   return svgWrap(w, h,
     `<text x="${w / 2}" y="${h / 2 + 4}" text-anchor="middle" class="t-mut">No data</text>`,
