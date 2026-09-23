@@ -28,7 +28,7 @@ import {
 import { renderStats } from './render-stats.js';
 import { initDayRail, bindCarousels, setCarousel } from './interactions.js';
 import {
-  getOverdue, getUpcoming, expandByPlatform, getByDay, countAll,
+  getOverdue, getUpcoming, expandByPlatform, getByDay, countPosts,
 } from './selectors.js';
 import * as lightbox from './lightbox.js';
 import { entryKey, captionKey } from './render-post.js';
@@ -288,8 +288,8 @@ async function refresh({ quiet = false } = {}) {
       if (!quiet) {
         toast('Already up to date',
           followersMoved
-            ? `${countAll(posts)} posts, unchanged - follower counts updated.`
-            : `${countAll(posts)} posts, nothing changed.`, 'ok', 2600);
+            ? `${countPosts(posts)} posts, unchanged - follower counts updated.`
+            : `${countPosts(posts)} posts, nothing changed.`, 'ok', 2600);
       }
       return;
     }
@@ -305,7 +305,7 @@ async function refresh({ quiet = false } = {}) {
     if (r) r.scrollLeft = keepScroll;
 
     toast(quiet ? 'Tracker updated' : 'Tracker refreshed',
-      `${countAll(posts)} posts loaded.`, 'ok', 3500);
+      `${countPosts(posts)} posts loaded.`, 'ok', 3500);
   } catch (err) {
     state.refreshing = false;
     syncSyncLabel();
@@ -384,7 +384,7 @@ const ACTIONS = {
 
     for (const f of FILTER_FIELDS) state.filters[f].clear();
     state.filters.overdueOnly = true;
-    state.alertAckCount = countAll(late);
+    state.alertAckCount = countPosts(late);
     state.alertSnoozeUntil = 0;   // reviewed, not postponed
 
     const first = late[0];
@@ -445,7 +445,7 @@ const ACTIONS = {
 
     for (const f of FILTER_FIELDS) state.filters[f].clear();
     state.filters.overdueOnly = false;
-    state.upcomingAckCount = countAll(soon);
+    state.upcomingAckCount = countPosts(soon);
     state.upcomingSnoozeUntil = 0;
 
     const first = soon[0];
@@ -469,14 +469,14 @@ const ACTIONS = {
    * quietly turn a real backlog into nobody's problem.
    */
   'dismiss-alert'() {
-    state.alertAckCount = countAll(getOverdue());
+    state.alertAckCount = countPosts(getOverdue());
     state.alertSnoozeUntil = Date.now() + ALERT_SNOOZE_MS;
     renderAlert();
     armSnooze();
   },
 
   'dismiss-upcoming'() {
-    state.upcomingAckCount = countAll(getUpcoming());
+    state.upcomingAckCount = countPosts(getUpcoming());
     state.upcomingSnoozeUntil = Date.now() + ALERT_SNOOZE_MS;
     renderAlert();
     armSnooze();

@@ -177,7 +177,7 @@ function normalise(rows) {
     return { name, brandKey, nth, idx, links: links.get(name) || new Map() };
   });
 
-  // Which accounts each brand owns, so the matrix can say so on hover.
+  // Which accounts each brand owns, so a brand tile can say so on hover.
   const brands = new Map();
   for (const a of accounts) {
     if (!a.brandKey) continue;

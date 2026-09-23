@@ -97,8 +97,8 @@ function stripBodyHTML(posts, only = '') {
 }
 
 function stripHeadHTML(key, posts, only = '') {
-  // Posts, not rows: a crosspost on this day is drawn twice below, so the
-  // header would otherwise say "1 post" above two cards.
+  // Posts, not cards: a crosspost is one post but is drawn once per platform
+  // below, each copy marked "crosspost".
   const n = countPosts(posts);
   const parts = partsFromKey(key);
   const d = new Date(parts.y, parts.mo, parts.d);
@@ -236,7 +236,7 @@ function watchHydration(rail) {
   hydrateNear(rail);
 }
 
-/** Everything on show this month, counted in posts rather than in sheet rows. */
+/** Everything on show this month, in posts - one per tracker row. */
 const monthTotal = (byDay) =>
   Array.from(byDay.values()).reduce((n, a) => n + countPosts(a), 0);
 

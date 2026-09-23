@@ -120,32 +120,25 @@ hint, so the guess never masks the missing value.
 
 ### What counts as one post
 
-**A row that goes out on several platforms counts as several posts.** One tracker row with
-`Facebook, Instagram` in its Platform cell is two posts: two pieces of creative in two feeds,
-two things that have to go right, two lines of work. A row crossposted to three platforms is
-three.
+**One row in the tracker is one post**, however many platforms it goes out on. A row with
+`Facebook, Instagram` in its Platform cell is one piece of creative and one deliverable
+against the monthly plan, so it counts once — in the app bar, `showing N of M`, the count on a
+day strip, a calendar cell, the filter-menu counts, both notifications, and every total on the
+Stats tab.
 
-This is the unit **every** number on the page uses - the app bar, `showing N of M`, the count
-on a day strip, the number in a calendar cell, the filter-menu counts, both notifications and
-every figure and chart on the Stats tab. The views already worked this way, since a crosspost
-has always been *drawn* once per platform; before this the totals alone still counted rows,
-which is how a day could show two cards under a header reading "1 post".
+Two things deliberately do *not* follow that, because they are about platforms rather than
+posts:
 
-Two consequences worth knowing:
+- **The day view still draws a crosspost once per platform**, since what it looks like on
+  Facebook and on Instagram are two different mocks. A strip can therefore show more cards than
+  its header counts; each extra one carries a `crosspost` marker.
+- **Per-platform breakdowns** — the platform chips on a strip or a calendar cell, the Platform
+  filter menu, the Platform mix chart — put a crosspost under each
+  platform it is on. Those legitimately sum to more than the number of posts.
 
-- **The post count is larger than the number of rows in your sheet.** 56 rows with 20
-  crossposts make 76 posts. The `Crossposts` card on the Stats tab names both figures so the
-  difference is never a mystery.
-- **Filtering to one platform counts only that platform's half.** With the Platform filter set
-  to Instagram, a Facebook+Instagram row is one post, not two - it is counted the way it is
-  drawn.
-
-Two figures stay deliberately in rows, and say so: the `Crossposts` card, which exists to
-explain the gap, and `Incomplete rows`, which counts sheet cells somebody has to fill in.
-
-In the code this lives in `js/selectors.js` as `countPosts` (filter-aware) and `countAll`
-(ignores the platform filter, for the "of M" denominator and the notifications). If you add a
-count anywhere, use one of those rather than `.length`.
+This has changed once already (for a while a crosspost counted once per platform), so every
+count goes through `countPosts` in `js/selectors.js` rather than `.length` at the call site. If
+the rule changes again, it changes there.
 
 ### Follower counts
 
@@ -229,9 +222,11 @@ Changes are compared week by week rather than by pairing up the last two points 
 an account added halfway through has fewer readings than its neighbours, and pairing by
 position would difference two different weeks.
 
-The figure beside a brand in the grid below is always its **whole** standing, across every
-platform, whatever this card is filtered to — it belongs to a different card and its tooltip
-says so.
+Each **Brand distribution tile** at the top of the tab carries that brand's follower change
+since the previous weekly reading, with an arrow for the direction (`▲ 310`); on the first
+reading it shows the standing instead (`9,029 followers`). It is always the brand's **whole**
+standing, across every platform, whatever these charts are filtered to — its tooltip says so,
+along with the percentage and the date it is measured from.
 
 **Growth needs two readings.** With only one week filled in there is no change to report, so
 the chart is a row of labelled dots, each account is marked `first reading`, and the brand
@@ -612,7 +607,7 @@ narrows that strip to that platform** - a day carrying a Facebook post, an Insta
 be read one channel at a time. Click the same chip again, or the **show all** link, to clear
 it.
 
-It filters the *placements*, not the rows, so a crosspost shows just the one placement you are
+It filters the *cards*, not the rows, so a crosspost shows just the one platform you are
 looking at rather than disappearing or dragging its other platform along with it.
 
 The selection is deliberately **local and temporary**: it belongs to the day you are reading,
@@ -712,23 +707,46 @@ mode over thirty days stays instant.
 Every number respects the active filters, and every number counts **posts, not sheet rows** -
 see [What counts as one post](#what-counts-as-one-post).
 
-**KPI cards**
+**Brand distribution and Monthly deliverables**
 
-| Card | Meaning |
+The top of the tab is laid out the way the client deck lays out the plan: three brand tiles,
+a content-type x brand grid, then one tile per format with its purpose underneath. Every
+figure is the tracker set against the plan, three deep:
+
+| | Meaning |
 |---|---|
-| Posts in view | Posts matching the current filters, against the tracker total |
-| Posted | How many are `Posted`, and what share of the selection that is |
-| Needs action | Posts still marked `Needs Action` |
-| Days with content | Distinct dates that have at least one post, plus the average per active day |
-| Busiest day | The highest single-day count, and which day |
-| Date range | First and last posting date in the selection |
-| Past due | Posts whose date has gone by while still not marked `Posted` |
-| Crossposts | How many **rows** go out on more than one platform, and the row-to-post gap they account for |
-| Incomplete rows | **Rows** missing a Platform or a Type of Post |
+| The big number | posts the tracker has scheduled this month, any status |
+| `/ 56` beside it | what the monthly plan commits to |
+| The bar | green for posted, the accent for scheduled but not yet out, the empty track for the gap still to the plan |
 
-`Crossposts` and `Incomplete rows` are the two cards that deliberately count rows: the first
-exists to explain why the post count is bigger than the sheet, and the second names cells
-somebody has to go and fill in.
+The brand tiles also give each brand's share of the month against its share of the plan
+(`53% of the month's creatives · plan 50%`); the format tiles give the pace per week against
+the plan's (`~6 / wk · plan ~7`) and the deck's description of what the format is for. In
+the grid a line that meets its plan turns green.
+
+These two cards are **month-scoped**, unlike the rest of the tab — the plan is a monthly
+commitment, so they cover the month selected in the calendar. Filters still apply; narrowed
+to `Posted`, they read as delivered against committed.
+
+Planned brands and formats always appear, even at zero: `0 / 12` Carousels is exactly what
+this is for. Anything the tracker has that the plan does not — a Story, an unassigned brand —
+is added after them and marked `not in plan`.
+
+**The plan lives in `PLAN` in `js/config.js`.** Only the brand x format grid is stored; the
+brand totals (56 / 28 / 28), format totals (30 / 40 / 15 / 12 / 15) and the grand total
+(112) are all derived from it, so they can never disagree. Edit a cell and every total
+follows. The format names, descriptions and the non-creative line items at the foot come
+from the same place.
+
+Tile colours are the brand and format colours, each darkened just far enough for white text
+to clear 4.6:1 — Solaire's gold needed 25%, the rest almost nothing. They are `--tile-*` in
+`css/tokens.css`, and the Type of post donut uses the same ones, so a format is one colour
+everywhere on the tab. Dynamic / Moving is amber rather than TikTok's pink, which sat right
+beside Reels.
+
+The old KPI cards are gone; what they said is still on the tab. The posted share is in the
+middle of Status breakdown, the busiest day and date range are on Posts per day, and the
+past-due count is in the filter bar and the notices.
 
 **Charts**
 
@@ -744,20 +762,8 @@ somebody has to go and fill in.
   light theme and a light one on dark, so a single fixed colour is unreadable on one of them.
 - **Follower growth** — one small chart per channel of the weekly follower count, from the
   workbook's second tab. See [Follower counts](#follower-counts).
-- **Brand x platform** — a heat grid reading **posted against planned**: a cell showing `7/11`
-  is seven of eleven shipped. A bare total says how much work there is but nothing about how
-  much of it is done, which is the question this grid is usually being asked. An empty cell is
-  a channel that brand is not covering.
-
-  The last column reads **the total, then posted / for posting** — `49` above `17/32` means
-  forty-nine posts planned, seventeen of them shipped and thirty-two still to go. Beside each
-  brand's name is its **follower change** since the previous weekly reading, with an arrow for
-  the direction; hovering gives the current standing, the percentage and the date it is
-  measured from.
 - **Content readiness** — the share of posts that have a caption, an asset link and a live
-  post link. This is the panel that tells the team what is still outstanding. A crosspost with
-  no caption counts as two posts with no caption, because it is two things that go out
-  unwritten.
+  post link. This is the panel that tells the team what is still outstanding.
 
 Charts are hand-built inline SVG with no charting library, which is also why they re-colour
 instantly when the theme changes.
@@ -999,8 +1005,10 @@ js/
   mock-linkedin.js      |
   mock-tiktok.js        |
   mock-youtube.js       |
+  followers.js          the weekly follower tab: fetch, parse, per-platform series
   charts.js             the SVG chart helpers
   lightbox.js           the blacked-out overlay: spotlight and day carousel
+  render-plan.js        the plan tiles: brand distribution and monthly deliverables
   render-stats.js       the dashboard
   interactions.js       drag, the rail, the carousel
   main.js               boot and the render dispatcher
@@ -1147,10 +1155,9 @@ month arrows, or `Today`.
 copy is labelled `crosspost` in its header and names the other platform on hover, and each
 counts as its own post. Filtering to one platform shows only that copy, and counts only it.
 
-**The post count is higher than the number of rows in the sheet** - that is a crosspost row
-counting once per platform, which is what it is worth. See
-[What counts as one post](#what-counts-as-one-post); the `Crossposts` card on the Stats tab
-names both figures.
+**A day strip shows more cards than its count** - it has a crosspost on it. One row is one
+post and counts once, but it is drawn once per platform so you can see each mock; the extra
+card carries a `crosspost` marker. See [What counts as one post](#what-counts-as-one-post).
 
 **A caption will not copy** - clipboard access needs a secure context. `https://` and
 `localhost` both qualify; a plain `http://` internal host does not, and the page falls back to

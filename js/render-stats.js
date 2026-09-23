@@ -5,12 +5,12 @@
    ========================================================================== */
 
 import { escapeHtml } from './utils.js';
-import { MONTH_ABBR } from './config.js';
-import { partsFromKey, monthLabel } from './dates.js';
+import { monthLabel } from './dates.js';
 import { state } from './state.js';
 import { getStats } from './selectors.js';
 import { brandMeta, platformMeta, typeMeta, statusMeta } from './data.js';
 import { barsH, donut, legend, dayColumns, lines } from './charts.js';
+import { brandDistributionHTML, deliverablesHTML, planHints } from './render-plan.js';
 import {
   brandGrowth, seriesOn, accountsOn, platformsPresent,
 } from './followers.js';
@@ -25,18 +25,7 @@ const card = (title, hint, body, wide = false) =>
      <div class="card__body">${body}</div>
    </section>`;
 
-const kpi = (label, value, sub, hue, pct) =>
-  `<div class="kpi"${hue ? ` style="--kpi-c:${hue}"` : ''}>
-     <span class="kpi__label">${escapeHtml(label)}</span>
-     <span class="kpi__value">${escapeHtml(String(value))}</span>
-     ${sub ? `<span class="kpi__sub">${escapeHtml(sub)}</span>` : ''}
-     ${pct != null ? `<span class="kpi__bar"><i style="width:${Math.min(100, pct)}%"></i></span>` : ''}
-   </div>`;
 
-const prettyDate = (key) => {
-  const p = partsFromKey(key);
-  return p ? `${MONTH_ABBR[p.mo]} ${p.d}` : '\u2014';
-};
 
 export function renderStats(container) {
   const s = getStats();
@@ -48,36 +37,21 @@ export function renderStats(container) {
     return;
   }
 
-  /* ------------------------------- KPIs ---------------------------------- */
+  /* ------------------------------- the plan -------------------------------- */
 
-  const kpis = [
-    kpi('Posts in view', s.shown,
-        s.shown === s.total ? 'the whole tracker' : `of ${s.total} in the tracker`),
-    kpi('Posted', s.posted, `${s.postedPct}% of what is in view`,
-        'var(--st-posted)', s.postedPct),
-    kpi('Needs action', s.needs, 'not yet scheduled or approved', 'var(--st-needs)'),
-    kpi('Locked in', s.settled, `approved, scheduled or live · ${s.settledPct}%`,
-        'var(--st-approved)', s.settledPct),
-    kpi('Days with content', s.daysWithContent, `avg ${s.avgPerDay.toFixed(1)} posts per active day`),
-    kpi('Busiest day', s.busiest.n || 0,
-        s.busiest.key ? `on ${prettyDate(s.busiest.key)}` : '\u2014', 'var(--accent)'),
-    kpi('Date range', s.firstDate ? prettyDate(s.firstDate) : '\u2014',
-        s.lastDate ? `through ${prettyDate(s.lastDate)}` : ''),
+  /*
+   * What used to be a row of KPI cards, now laid out the way the client deck
+   * lays out the plan: brand distribution, then monthly deliverables, each
+   * tile set against its commitment. The status and timing figures the old
+   * cards carried are still on the tab - Status breakdown has the posted
+   * share, Posts per day has the busiest day and the date range, and the
+   * past-due count lives in the filter bar and the notices.
+   */
+  const hints = planHints();
+  const planCards = [
+    card('Brand distribution', hints.brands, brandDistributionHTML({ growth: growthChip }), true),
+    card('Monthly deliverables', hints.types, deliverablesHTML(), true),
   ];
-  if (s.overdue) {
-    kpis.push(kpi('Past due', s.overdue,
-      'date gone by, still not Posted', 'var(--danger)'));
-  }
-  if (s.crossposts) {
-    // Why the post count is larger than the number of rows in the sheet.
-    kpis.push(kpi('Crossposts', s.crossposts,
-      `${s.rowsShown} tracker row${s.rowsShown === 1 ? '' : 's'} make ${s.shown} posts`,
-      'var(--accent-2)'));
-  }
-  if (s.incomplete) {
-    kpis.push(kpi('Incomplete rows', s.incomplete,
-      'missing a platform or post type', 'var(--warn)'));
-  }
 
   /* ------------------------------ datasets -------------------------------- */
 
@@ -97,6 +71,8 @@ export function renderStats(container) {
   /* ------------------------------- charts --------------------------------- */
 
   const charts = [
+    ...planCards,
+
     card('Posts per brand', 'Who is publishing how much',
       barsH(brandData, { width: 420 })),
 
@@ -131,18 +107,12 @@ export function renderStats(container) {
       + 'a chart is also its filter — pick accounts to narrow that chart alone.',
       followersHTML(), true),
 
-    card('Brand \u00d7 platform',
-      'Posted against planned, per channel. The last column reads the total, then '
-      + 'posted / for posting; the figure beside a brand is its follower change.',
-      matrixHTML(s), true),
-
     card('Content readiness',
       'What the tracker still needs filled in for the posts in view',
       readinessHTML(s), true),
   ];
 
   container.innerHTML =
-    `<div class="kpis">${kpis.join('')}</div>` +
     `<div class="charts">${charts.join('')}</div>` +
     `<p class="statgrid-note">\u24d8 Engagement figures shown on the mock layouts are
        generated placeholders, not real platform metrics. Every number on this tab is
@@ -151,13 +121,16 @@ export function renderStats(container) {
 
 /* ------------------------------ sub-renders -------------------------------- */
 
+/* The same colour for a format everywhere on the tab - its deliverable tile,
+   its donut segment. Dynamic used to borrow TikTok's pink, which sat right
+   beside Reels' Instagram pink; it is amber now. */
 const TYPE_HUES = {
-  static:  'var(--accent)',
-  reels:   'var(--pf-instagram)',
-  album:   'var(--pf-facebook)',
-  dynamic: 'var(--pf-tiktok)',
-  story:   'var(--accent-2)',
-  ugc:     'var(--st-approved)',
+  static:  'var(--tile-static)',
+  reels:   'var(--tile-reels)',
+  album:   'var(--tile-album)',
+  dynamic: 'var(--tile-dynamic)',
+  story:   'var(--tile-story)',
+  ugc:     'var(--tile-ugc)',
   text:    'var(--st-approval)',
   link:    'var(--pf-linkedin)',
 };
@@ -189,7 +162,7 @@ const signed = (n) => `${sign(n)}${nf.format(Math.abs(n))}`;
 const signedPct = (n) => `${sign(n)}${Math.abs(n).toFixed(1)}%`;
 
 /**
- * The follower change beside a brand's name in the matrix.
+ * The follower change beside a brand's name, on its Brand distribution tile.
  *
  * Nothing is drawn on the very first reading. A "0" there would read as "flat
  * this week", which is a claim about a week we have not measured; the absence
@@ -209,7 +182,7 @@ function growthChip(brandKey) {
   if (g.delta === null) {
     return `<span class="fgrow fgrow--first"
       title="${escapeHtml(`${now} - first reading, so there is nothing to compare it with yet`)}">
-      ${escapeHtml(nf.format(g.now))}<em>followers</em></span>`;
+      ${escapeHtml(nf.format(g.now))} <em>followers</em></span>`;
   }
 
   const dir = g.delta > 0 ? 'up' : g.delta < 0 ? 'down' : 'flat';
@@ -248,8 +221,8 @@ function followersHTML() {
   const panels = platformsPresent(data).map((pk) => panelHTML(data, pk)).join('');
   const note = data.weeks.length < 2
     ? `<p class="flist__note">One reading so far, from ${escapeHtml(data.weeks[0].label)}.
-       Week-on-week growth appears on each chart, and beside each brand in the grid
-       below, as soon as a second week is filled in.</p>`
+       Week-on-week growth appears on each chart, and on each brand's tile at the top
+       of the tab, as soon as a second week is filled in.</p>`
     : '';
 
   return `<div class="fpanels">${panels}</div>${note}`;
@@ -348,63 +321,6 @@ function panelHTML(data, pk) {
       <div class="flist" role="group" aria-label="${escapeHtml(`${meta.label} accounts`)}">${rows}</div>
       ${body}
     </section>`;
-}
-
-/** Brand x platform heat grid — a cheap way to spot an uncovered channel. */
-function matrixHTML(s) {
-  const brands = Array.from(s.matrix.keys())
-    .sort((a, b) => (s.byBrand.get(b) || 0) - (s.byBrand.get(a) || 0));
-  const platforms = s.byPlatform.map(([k]) => k);
-  if (!brands.length || !platforms.length) return '<div class="empty">No data</div>';
-
-  const max = Math.max(1, ...brands.flatMap((b) =>
-    platforms.map((p) => s.matrix.get(b)?.get(p) || 0)));
-
-  const head = platforms.map((p) => {
-    const meta = platformMeta(p);
-    return `<th><span class="matrix__hd">${meta.icon
-      ? `<img src="${meta.icon}" alt="">` : ''}${escapeHtml(meta.label)}</span></th>`;
-  }).join('');
-
-  const rows = brands.map((bk) => {
-    const b = brandMeta(bk);
-    const growth = growthChip(bk);
-    const cells = platforms.map((p) => {
-      const n = s.matrix.get(bk)?.get(p) || 0;
-      if (!n) return `<td><span class="matrix__n matrix__n--zero">–</span></td>`;
-      const done = s.matrixPosted.get(bk)?.get(p) || 0;
-      const w = Math.round((n / max) * 65);
-      // Shipped against planned. A bare total says how much work there is but
-      // nothing about how much of it is done, which is the question this grid
-      // is usually being asked.
-      return `<td><span class="matrix__n" style="--w:${w}" ` +
-             `title="${escapeHtml(`${done} of ${n} posted`)}">` +
-             `<b>${done}</b><i>/${n}</i></span></td>`;
-    }).join('');
-    /*
-     * The row total, split the way the cells are: how many posts in all, and
-     * of those how many have shipped against how many are still to go. A bare
-     * total says how much work there is and nothing about how much is done.
-     */
-    const total = s.byBrand.get(bk) || 0;
-    let done = 0;
-    for (const n of (s.matrixPosted.get(bk)?.values() || [])) done += n;
-    const togo = total - done;
-
-    return `<tr>
-      <td><span class="fchip__dot" style="--c:${b.hue}"></span>
-        ${escapeHtml(b.label)}${growth}</td>
-      ${cells}
-      <td class="matrix__tot" title="${escapeHtml(
-        `${total} post${total === 1 ? '' : 's'} · ${done} posted · ${togo} for posting`)}">
-        <b>${total}</b><i>${done}/${togo}</i>
-      </td></tr>`;
-  }).join('');
-
-  return `<table class="matrix">
-      <thead><tr><th>Brand</th>${head}<th>Total<br><span class="matrix__sub">posted / for posting</span></th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
 }
 
 /**

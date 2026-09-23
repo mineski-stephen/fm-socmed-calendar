@@ -172,6 +172,34 @@
 :root[data-theme="dark"] { --pf-x: #e8eaed; }
 
 /* ---------------------------------------------------------------------------
+   Plan tiles, on the Stats tab: solid blocks with white text on them, in the
+   brand's or the format's own colour.
+
+   Each is that colour darkened just far enough for WHITE text to clear 4.6:1,
+   because the brand tiles carry the brand name and a share line in small
+   text as well as the big number. Most needed almost nothing; Solaire's gold
+   is the exception (25% darker - white on the original is 2.9:1, unreadable).
+   Fixed across themes, like the deck they copy: a solid block reads the same
+   on either background.
+   ------------------------------------------------------------------------- */
+:root {
+  --tile-ink: #ffffff;
+
+  --tile-funalomax:          #dd302a;   /* 4.64:1 */
+  --tile-funalomax-studios:  #7c3aed;   /* 5.70:1 */
+  --tile-solaire-online:     #906e23;   /* 4.73:1 */
+  --tile-unknown:            #6d7583;   /* 4.64:1 */
+
+  --tile-static:   #4f46e5;             /* 6.29:1 */
+  --tile-reels:    #d82e68;             /* 4.66:1 */
+  --tile-dynamic:  #b06005;             /* 4.64:1 */
+  --tile-album:    #1771e6;             /* 4.62:1 */
+  --tile-ugc:      #0f766e;             /* 5.47:1 */
+  --tile-story:    #994de1;             /* 4.66:1 */
+  --tile-other:    #6d7583;             /* 4.64:1 */
+}
+
+/* ---------------------------------------------------------------------------
    Account hues, for the follower charts.
 
    Handed out by an account's position in the sheet, NOT taken from its brand:

@@ -117,8 +117,8 @@ export function renderCalendar(container) {
     const out = el.classList.contains('cell--out');
 
     el.querySelector('[data-chips]').innerHTML = out ? '' : chipsHTML(posts);
-    // Posts, not rows, matching the chips below it: a crosspost shows a chip
-    // under each platform, so the cell total has to count it the same way.
+    // Posts - one per row. The platform chips below count per platform, so a
+    // crosspost adds to two chips but only once to this.
     const n = out ? 0 : countPosts(posts);
     const total = el.querySelector('[data-total]');
     total.textContent = n || '';

@@ -387,16 +387,15 @@ function makeEngagement(post, platformKey) {
  */
 export function buildFacets(posts) {
   /*
-   * Counted in posts, not rows: a Facebook+Instagram crosspost is two posts,
-   * so it adds two to its brand, its status and its type - exactly the two it
-   * adds to the platform counts below. Every facet therefore sums to the same
-   * total, which is the number in the app bar.
+   * One per row for brand, status and type. Platforms count per platform, so a
+   * crosspost appears under each of its platforms and those counts can sum to
+   * more than the number of posts.
    */
   const count = (keyFn) => {
     const m = new Map();
     for (const p of posts) {
       const k = keyFn(p);
-      m.set(k, (m.get(k) || 0) + p.platformKeys.length);
+      m.set(k, (m.get(k) || 0) + 1);
     }
     return m;
   };

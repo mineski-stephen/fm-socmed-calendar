@@ -6,9 +6,9 @@
 
 import { state, FILTER_FIELDS, monthKeyOfState } from './state.js';
 import {
-  PLATFORM_ORDER, TYPE_ORDER, STATUS_ORDER, STATUS_SETTLED, UPCOMING_WINDOW_DAYS,
+  PLATFORM_ORDER, TYPE_ORDER, STATUS_ORDER, STATUS_SETTLED, UPCOMING_WINDOW_DAYS, PLAN,
 } from './config.js';
-import { monthDayKeys, todayKey, shiftKey } from './dates.js';
+import { monthDayKeys, todayKey, shiftKey, daysInMonth } from './dates.js';
 import { groupBy, orderedEntries } from './utils.js';
 
 function cacheKey() {
@@ -20,7 +20,7 @@ function cacheKey() {
 function fresh() {
   const key = cacheKey();
   if (state._cache.key === key) return false;
-  state._cache = { key, filtered: null, byDay: null, stats: null };
+  state._cache = { key, filtered: null, byDay: null, stats: null, plan: null };
   return true;
 }
 
@@ -92,36 +92,30 @@ export function visiblePlatforms(post) {
 /* ---------------------------------------------------------------------------
    COUNTING
 
-   A crosspost is one row in the tracker and several postings in the world: a
-   row going out on Facebook and Instagram is two posts, drawn as two cards,
-   landing in two feeds, needing two things to go right.
+   One row in the tracker is one post, however many platforms it goes out on.
+   A Facebook+Instagram crosspost is one piece of creative and one deliverable
+   against the monthly plan, so it counts once - in the app bar, "showing N of
+   M", a day strip, a calendar cell, the notices, and every total on Stats.
 
-   So the unit every number on this page counts is the PLACEMENT - one post on
-   one platform - not the sheet row. The views already worked this way, since
-   expandByPlatform draws a crosspost once per platform; it was only the
-   totals that still said 1, which is why a day could show two cards under a
-   header reading "1 post".
+   Two things deliberately do NOT follow that, because they are about
+   platforms rather than posts:
 
-   Two flavours, and the difference matters:
+     - The day view still DRAWS a crosspost once per platform, since what it
+       looks like on Facebook and on Instagram are two different mocks. A
+       strip can show more cards than its header counts; the extra ones carry
+       a "crosspost" marker.
+     - Per-platform breakdowns - the platform chips on a strip or calendar
+       cell, the Platform mix chart, the brand x platform cells - put a
+       crosspost under each platform it is on, and so sum to more than the
+       post count.
 
-     countPosts    respects the platform filter, because it counts what is on
-                   screen. Filtered to Instagram, a Facebook+Instagram row is
-                   one post, not two.
-     countAll      ignores it. For the "of 76" denominator and for the
-                   notices, which deliberately speak about the whole tracker.
+   This has changed once already (for a while a crosspost counted once per
+   platform), so every count goes through countPosts rather than `.length` at
+   the call site. If it changes again, it changes here.
    ------------------------------------------------------------------------- */
 
-/** How many postings a row is worth, whatever the filters say. */
-export const placementsOf = (post) => post.platformKeys.length;
-
-/** The same, narrowed to the platforms a filter leaves on screen. */
-export const shownPlacementsOf = (post) => visiblePlatforms(post).length;
-
-/** Postings in a list, counting only what the platform filter leaves. */
-export const countPosts = (list) => list.reduce((n, p) => n + shownPlacementsOf(p), 0);
-
-/** Postings in a list, ignoring the platform filter entirely. */
-export const countAll = (list) => list.reduce((n, p) => n + placementsOf(p), 0);
+/** How many posts a list is worth: one per tracker row. */
+export const countPosts = (list) => list.length;
 
 /** Flatten posts into one entry per visible platform, in display order. */
 export function expandByPlatform(posts) {
@@ -184,7 +178,7 @@ export function brandChipsFor(posts) {
     }
     out.push({
       brandKey,
-      // Placements, so the group total agrees with the chips beside it.
+      // Posts: a crosspost counts once here, and under each platform chip.
       total: countPosts(list),
       platforms: orderedEntries(byPlatform, PLATFORM_ORDER)
         .map(([platformKey, count]) => ({ platformKey, count })),
@@ -196,22 +190,18 @@ export function brandChipsFor(posts) {
 
 /* --------------------------------- stats ---------------------------------- */
 
-/*
- * Every breakdown is weighted by placements, so a Facebook+Instagram row adds
- * two to its brand, its type, its status and its day - the same two it already
- * adds to the platform mix. Any other weighting and the charts on this tab
- * would disagree with each other about the same row.
- */
+/* One post per row - see COUNTING. The platform breakdowns are the only
+   per-platform counts, and they are built separately below. */
 const tally = (list, keyFn) => {
   const m = new Map();
   for (const p of list) {
     const k = keyFn(p);
-    m.set(k, (m.get(k) || 0) + shownPlacementsOf(p));
+    m.set(k, (m.get(k) || 0) + 1);
   }
   return m;
 };
 
-/** Postings in `list` that satisfy `test`, counted the same way. */
+/** Posts in `list` that satisfy `test`. */
 const countWhere = (list, test) => countPosts(list.filter(test));
 
 export function getStats() {
@@ -227,27 +217,10 @@ export function getStats() {
   const byDate = tally(shown, (p) => p.dateKey);
 
   const byPlatform = new Map();
-  const matrix = new Map();
-  // Shipped placements, counted the same way, so a cell can read "7 of 11"
-  // rather than a total that says nothing about progress.
-  const matrixPosted = new Map();
-  let placements = 0;
   for (const p of shown) {
-    if (!matrix.has(p.brandKey)) matrix.set(p.brandKey, new Map());
-    if (!matrixPosted.has(p.brandKey)) matrixPosted.set(p.brandKey, new Map());
-    const row = matrix.get(p.brandKey);
-    const done = matrixPosted.get(p.brandKey);
-    for (const pk of visiblePlatforms(p)) {
-      byPlatform.set(pk, (byPlatform.get(pk) || 0) + 1);
-      row.set(pk, (row.get(pk) || 0) + 1);
-      if (p.statusKey === 'posted') done.set(pk, (done.get(pk) || 0) + 1);
-      placements += 1;
-    }
+    for (const pk of visiblePlatforms(p)) byPlatform.set(pk, (byPlatform.get(pk) || 0) + 1);
   }
-  // How many ROWS are crossposts - the one figure on this tab that is
-  // deliberately about sheet rows, since it exists to explain the gap between
-  // the row count and the post count.
-  const crossposts = shown.filter((p) => shownPlacementsOf(p) > 1).length;
+  const crossposts = shown.filter((p) => visiblePlatforms(p).length > 1).length;
   const overdue = countWhere(shown, isOverdue);
 
   const dates = Array.from(byDate.keys()).sort();
@@ -260,9 +233,7 @@ export function getStats() {
   let busiest = { key: '', n: 0 };
   for (const [k, n] of byDate) if (n > busiest.n) busiest = { key: k, n };
 
-  // Content readiness — what the team still has to fill in. Counted in posts
-  // like everything else: a crosspost with no caption is two posts with no
-  // caption, because it is two things that go out unwritten.
+  // Content readiness — what the team still has to fill in.
   const withCaption = countWhere(shown, (p) => p.hasCaption);
   const withAsset = countWhere(shown, (p) => p.filesUrl);
   const withLink = countWhere(shown, (p) => p.postLink);
@@ -276,7 +247,7 @@ export function getStats() {
   const postedByDate = new Map();
   for (const p of shown) {
     if (p.statusKey !== 'posted') continue;
-    postedByDate.set(p.dateKey, (postedByDate.get(p.dateKey) || 0) + shownPlacementsOf(p));
+    postedByDate.set(p.dateKey, (postedByDate.get(p.dateKey) || 0) + 1);
   }
   const perDay = monthKeys.map((k) => {
     const n = byDate.get(k) || 0;
@@ -284,15 +255,10 @@ export function getStats() {
     return { key: k, n, posted: done, other: n - done };
   });
 
+  const n = countPosts(shown);
   const stats = {
-    /*
-     * Posts, meaning placements. `rows` and `rowsShown` are the tracker's own
-     * row counts, kept for the two figures that are honestly about rows.
-     */
-    total: countAll(all),
-    shown: placements,
-    rows: all.length,
-    rowsShown: shown.length,
+    total: countPosts(all),
+    shown: n,
     crossposts,
     overdue,
     byBrand,
@@ -300,28 +266,103 @@ export function getStats() {
     byType: orderedEntries(byType, TYPE_ORDER),
     byStatus: orderedEntries(byStatus, STATUS_ORDER),
     byDate,
-    matrix,
-    matrixPosted,
     perDay,
     monthKey: mk,
     posted,
     needs,
     settled,
-    settledPct: placements ? Math.round((settled / placements) * 100) : 0,
-    postedPct: placements ? Math.round((posted / placements) * 100) : 0,
+    settledPct: n ? Math.round((settled / n) * 100) : 0,
+    postedPct: n ? Math.round((posted / n) * 100) : 0,
     daysWithContent: dates.length,
-    avgPerDay: dates.length ? (placements / dates.length) : 0,
+    avgPerDay: dates.length ? (n / dates.length) : 0,
     busiest,
     firstDate: dates[0] || '',
     lastDate: dates[dates.length - 1] || '',
     readiness: [
-      { label: 'Has a caption',   n: withCaption, of: placements, hue: 'var(--accent)' },
-      { label: 'Has an asset link', n: withAsset, of: placements, hue: 'var(--pf-instagram)' },
-      { label: 'Has a live post link', n: withLink, of: placements, hue: 'var(--st-posted)' },
+      { label: 'Has a caption',   n: withCaption, of: n, hue: 'var(--accent)' },
+      { label: 'Has an asset link', n: withAsset, of: n, hue: 'var(--pf-instagram)' },
+      { label: 'Has a live post link', n: withLink, of: n, hue: 'var(--st-posted)' },
     ],
     incomplete,
     today: todayKey(),
   };
   state._cache.stats = stats;
   return stats;
+}
+
+/* ---------------------------------- plan ---------------------------------- */
+
+/**
+ * The selected month's tracker against the monthly plan in config.js.
+ *
+ * MONTH-scoped, unlike the rest of the Stats tab: the plan is a monthly
+ * commitment, so 58 posts across two months set against a plan of 112 would
+ * be a comparison that means nothing. Filters still apply, like everywhere
+ * else - narrowed to Posted, it reads as "delivered against committed".
+ *
+ * Every figure is kept three ways, which is what the tiles draw:
+ *
+ *   plan       what the retainer commits to
+ *   actual     what the tracker has scheduled this month, any status
+ *   posted     of those, what is marked Posted
+ *
+ * Brands and formats in the plan are always present, even at zero - a plan
+ * line with nothing against it is the most useful thing this can show.
+ * Anything the tracker has that the plan does not (a Story, an unassigned
+ * brand) is added after them and marked as outside the plan.
+ */
+export function getPlanStats() {
+  fresh();
+  if (state._cache.plan) return state._cache.plan;
+
+  const posts = getMonthPosts();
+  const grid = PLAN.grid;
+
+  const planTypes = Object.keys(grid);
+  const planBrands = [];
+  for (const row of Object.values(grid)) {
+    for (const b of Object.keys(row)) if (!planBrands.includes(b)) planBrands.push(b);
+  }
+
+  const extraTypes = TYPE_ORDER.concat(['unspecified'])
+    .filter((t) => !planTypes.includes(t) && posts.some((p) => p.typeKey === t));
+  const extraBrands = [...new Set(posts.map((p) => p.brandKey))]
+    .filter((b) => !planBrands.includes(b)).sort();
+
+  const types = planTypes.concat(extraTypes);
+  const brands = planBrands.concat(extraBrands);
+
+  const zero = () => ({ plan: 0, actual: 0, posted: 0, inPlan: false });
+  const cell = {};
+  for (const t of types) {
+    cell[t] = {};
+    for (const b of brands) {
+      const planned = grid[t]?.[b];
+      cell[t][b] = { ...zero(), plan: planned || 0, inPlan: planned !== undefined };
+    }
+  }
+  for (const p of posts) {
+    const c = cell[p.typeKey]?.[p.brandKey];
+    if (!c) continue;
+    c.actual += 1;
+    if (p.statusKey === 'posted') c.posted += 1;
+  }
+
+  const sum = (cells) => cells.reduce((acc, c) => ({
+    plan: acc.plan + c.plan, actual: acc.actual + c.actual,
+    posted: acc.posted + c.posted, inPlan: acc.inPlan || c.inPlan,
+  }), zero());
+
+  const byType = Object.fromEntries(types.map((t) => [t, sum(brands.map((b) => cell[t][b]))]));
+  const byBrand = Object.fromEntries(brands.map((b) => [b, sum(types.map((t) => cell[t][b]))]));
+  const total = sum(Object.values(byType));
+
+  const { y, mo } = state.month || { y: 0, mo: 0 };
+  const plan = {
+    types, brands, cell, byType, byBrand, total,
+    // Weeks in the selected month, for the "~7 / wk" pace on each tile.
+    weeks: state.month ? daysInMonth(y, mo) / 7 : 4,
+  };
+  state._cache.plan = plan;
+  return plan;
 }

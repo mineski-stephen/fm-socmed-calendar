@@ -376,3 +376,47 @@ export const DRIVE_IMG = (id, w = 1200) =>
 
 /** How many real images a single post will draw before it stops. */
 export const MAX_DRIVE_IMAGES = 10;
+
+/* --------------------------------- plan ----------------------------------- */
+
+/*
+ * The monthly content plan: what the retainer commits to, per brand and per
+ * format, from the client deck ("Brand distribution" / "Monthly
+ * deliverables"). The Stats tab reports the tracker against it.
+ *
+ * Only the brand x format grid is stored. Brand totals (56 / 28 / 28), format
+ * totals (30 / 40 / 15 / 12 / 15) and the grand total (112) are all DERIVED
+ * from it, so the three can never disagree with each other - edit a cell and
+ * every total follows. Keys are the tracker's own brand and type keys.
+ *
+ * `label` and `blurb` are the deck's wording for each format, shown on its
+ * tile. Formats the tracker uses that are not in the plan (Story, say) still
+ * appear, marked as outside it.
+ */
+export const PLAN = {
+  types: {
+    static:  { label: 'Static Posts',
+      blurb: 'High-frequency \u201cDaily Rituals\u201d and \u201cPeer Insights\u201d to stay top-of-mind.' },
+    reels:   { label: 'Shorts / Reels',
+      blurb: 'Capturing the Boredom Economy with quick, snackable \u201cMe-Time\u201d escapes.' },
+    dynamic: { label: 'Dynamic / Moving',
+      blurb: 'Visually engaging content to highlight the \u201cUnique Prize Ecosystem\u201d and status rewards.' },
+    album:   { label: 'Carousels',
+      blurb: 'Deep dives into \u201cHow-to-Play,\u201d safety/legitimacy proofs, and \u201cWin for Home\u201d stories.' },
+    ugc:     { label: 'KOL / UGC Shares',
+      blurb: 'Amplifying \u201cPeer\u201d voices and community testimonials to humanize the brand.' },
+  },
+  grid: {
+    static:  { 'funalomax': 16, 'funalomax-studios': 7,  'solaire-online': 7 },
+    reels:   { 'funalomax': 20, 'funalomax-studios': 10, 'solaire-online': 10 },
+    dynamic: { 'funalomax': 7,  'funalomax-studios': 4,  'solaire-online': 4 },
+    album:   { 'funalomax': 6,  'funalomax-studios': 3,  'solaire-online': 3 },
+    ugc:     { 'funalomax': 7,  'funalomax-studios': 4,  'solaire-online': 4 },
+  },
+  // The non-creative line items at the foot of the deliverables slide.
+  extras: [
+    'Community Management \u2014 FUNaloMAX Official Facebook Group + Telegram Group',
+    'Awareness / Content Boosting',
+    'Dedicated Production Team (1x/month photo & video shoot)',
+  ],
+};

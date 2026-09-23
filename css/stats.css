@@ -43,53 +43,149 @@
   --st-micro:   11px;
 }
 
-/* --------------------------------- KPIs ----------------------------------- */
+/* ------------------------------- the plan --------------------------------- */
 
-.kpis {
+/*
+ * Brand distribution and monthly deliverables, laid out like the client deck.
+ *
+ * Brand tiles are solid blocks with everything on the colour; deliverable
+ * tiles carry only the number on their colour and the rest below on the
+ * card. Both colours come from --tile-* in tokens.css, each darkened just far
+ * enough for white text to clear 4.6:1.
+ */
+.btiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 11px;
-  margin-bottom: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
 }
-.kpi {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 16px 17px;
-  box-shadow: var(--shadow-sm);
-  display: flex; flex-direction: column; gap: 4px;
-  min-width: 0;
+.btile {
+  background: var(--t);
+  color: var(--tile-ink);
+  border-radius: var(--radius);
+  padding: 18px 16px 14px;
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
 }
-/* Uppercase with tracking, so it holds its own at the smallest size here. */
-.kpi__label {
-  font-size: var(--st-micro); font-weight: 700; letter-spacing: .07em;
-  text-transform: uppercase; color: var(--text-dim);
-}
-.kpi__value {
-  font-size: var(--st-display); font-weight: 700; letter-spacing: -.025em;
+.btile__n, .dtile__block {
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-  color: var(--kpi-c, var(--text));
+  line-height: 1;
 }
-.kpi__sub {
-  font-size: var(--st-meta); color: var(--text-dim);
-  line-height: 1.4;
-  /* These explain what the number means, so they wrap rather than truncate -
-     a clipped "approved, scheduled or li..." is worse than two lines. */
-  overflow-wrap: anywhere;
+.btile__n b, .dtile__block b {
+  font-size: 44px; font-weight: 800; letter-spacing: -.02em;
 }
-.kpi__bar {
-  height: 5px; border-radius: 99px;
+.btile__n i, .dtile__block i {
+  font-style: normal; font-size: var(--st-title); font-weight: 600;
+  opacity: .8; margin-left: 4px;
+}
+.btile__name {
+  font-size: var(--st-body); font-weight: 800;
+  letter-spacing: .05em; text-transform: uppercase;
+  margin-top: 6px;
+}
+.btile__sub { font-size: var(--st-meta); opacity: .92; }
+
+/* The follower change, on the tile's own colour. The card-surface greens and
+   reds would sit badly on a red or purple block, so it goes white-on-tint
+   here; the arrow and the sign still carry the direction. */
+.btile__grow { margin: 2px 0 1px; }
+.btile .fgrow {
+  margin: 0;
+  color: var(--tile-ink);
+  background: rgba(0, 0, 0, .22);
+  font-size: var(--st-meta);
+}
+.btile .fgrow em { opacity: .85; }
+
+/* the bar on a coloured tile has to show against that colour, not the card */
+.btile .pbar { width: 80%; margin-top: 10px; background: rgba(255, 255, 255, .22); }
+.btile .pbar__done { background: #ffffff; }
+.btile .pbar__sched { background: rgba(255, 255, 255, .55); }
+
+.dtiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+.dtile {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  background: var(--surface);
+}
+.dtile__block {
+  background: var(--t);
+  color: var(--tile-ink);
+  padding: 22px 10px 20px;
+  text-align: center;
+}
+.dtile__body {
+  padding: 12px 12px 14px;
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  flex: 1;
+}
+.dtile__name { margin: 0; font-size: var(--st-title); font-weight: 700; color: var(--text); }
+.dtile__pace { margin: 0; font-size: var(--st-meta); color: var(--text-dim);
+  font-variant-numeric: tabular-nums; }
+.dtile__blurb { margin: 2px 0 0; font-size: var(--st-meta); color: var(--text-dim);
+  line-height: 1.45; }
+.dtile__blurb--extra { font-style: italic; }
+.dtile .pbar { width: 100%; }
+
+/* posted, then scheduled, against the plan - on the card surface */
+.pbar {
+  display: flex;
+  height: 6px; border-radius: 99px;
   background: var(--surface-3);
   overflow: hidden;
-  /* pinned to the bottom so cards stay aligned whether their sub wrapped
-     onto a second line or not */
-  margin-top: auto;
 }
-.kpi__bar i {
-  display: block; height: 100%; border-radius: 99px;
-  background: var(--kpi-c, var(--accent));
+.pbar i { display: block; height: 100%; }
+.pbar__done { background: var(--st-posted); }
+.pbar__sched { background: var(--accent); }
+
+/* The format x brand grid. Same table as brand x platform further down, so
+   the two read alike; a met line turns green, a line outside the plan dims. */
+.plan__table { margin-top: 2px; }
+.plan__table td:first-child { text-align: left; }
+.plan__table tfoot td {
+  font-weight: 700; border-top: 2px solid var(--border);
+  border-bottom: 0;
 }
+.plan__cell {
+  display: inline-flex; align-items: baseline; gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.plan__cell b { font-weight: 700; color: var(--text); }
+.plan__cell i { font-style: normal; color: var(--text-dim); font-weight: 600; }
+.plan__cell.is-met b { color: var(--st-posted); }
+.plan__cell.is-extra b { color: var(--text-dim); }
+.plan__nil { color: var(--text-faint); }
+.plan__tag {
+  font-style: normal; font-size: var(--st-micro); font-weight: 600;
+  color: var(--text-dim); margin-left: 4px;
+}
+
+.plan__total {
+  margin: 16px auto 0;
+  width: fit-content;
+  padding: 8px 22px;
+  border-radius: var(--radius);
+  background: var(--tile-funalomax);
+  color: var(--tile-ink);
+  font-size: var(--st-body); font-weight: 700; letter-spacing: .03em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+.plan__total b { font-size: var(--st-title); }
+.plan__total span { font-weight: 600; opacity: .9; text-transform: none; letter-spacing: 0; }
+.plan__extras {
+  margin: 14px 0 0; padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+  font-size: var(--st-meta); color: var(--text-dim); line-height: 1.5;
+}
+.plan__extras span { color: var(--text-faint); margin: 0 4px; }
 
 /* -------------------------------- cards ----------------------------------- */
 
@@ -196,7 +292,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* --------------------------- brand x platform ----------------------------- */
+/* -------------------------------- tables ----------------------------------- */
 
 .matrix { width: 100%; border-collapse: collapse; font-size: var(--st-body); }
 .matrix th, .matrix td {
@@ -209,40 +305,6 @@
 }
 .matrix th:first-child, .matrix td:first-child { text-align: left; }
 .matrix td:first-child { font-weight: 600; white-space: nowrap; color: var(--text); }
-.matrix__hd { display: inline-flex; align-items: center; gap: 5px; justify-content: center; }
-.matrix__hd img { width: 17px; height: 17px; border-radius: 50%; }
-/* Posted against planned: the shipped number leads, the total trails it. */
-.matrix__n {
-  display: inline-flex; align-items: baseline; justify-content: center; gap: 1px;
-  min-width: 46px; padding: 4px 8px;
-  border-radius: 6px;
-  font-variant-numeric: tabular-nums;
-  background: color-mix(in srgb, var(--accent) calc(var(--w, 0) * 1%), var(--surface-2));
-  color: var(--text);
-}
-.matrix__n b { font-weight: 700; }
-.matrix__n i { font-style: normal; font-weight: 600; color: var(--text-dim); }
-/* the one place --text-faint belongs: a channel a brand does not cover */
-.matrix__n--zero { color: var(--text-faint); font-weight: 500; background: none; }
-/* Total, then how it splits: shipped against still to go. The split is the
-   smaller of the two figures on purpose - the total is what the column is
-   for, and the pair below it is the detail. */
-.matrix__tot {
-  color: var(--text); font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.matrix__tot b { font-weight: 700; }
-.matrix__tot i {
-  display: block;
-  font-style: normal; font-weight: 600;
-  font-size: var(--st-meta); color: var(--text-dim);
-}
-/* the second line of the column head */
-.matrix__sub {
-  display: block;
-  font-size: var(--st-micro); font-weight: 600; letter-spacing: 0;
-  text-transform: none; color: var(--text-dim);
-}
 
 /* ------------------------------- followers -------------------------------- */
 
@@ -395,7 +457,7 @@
 
 @media (max-width: 620px) {
   #view-stats { --st-display: 26px; --st-figure: 22px; }
-  .kpis { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 9px; }
+  .btile__n b, .dtile__block b { font-size: 36px; }
   .charts { grid-template-columns: 1fr; }
   .card { padding: 13px; }
   .matrix { display: block; overflow-x: auto; white-space: nowrap; }
